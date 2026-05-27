@@ -1659,12 +1659,21 @@ def invoice_detail(invoice_id):
 @app.route('/invoices/<int:invoice_id>/download')
 @login_required
 def download_invoice(invoice_id):
+    from xhtml2pdf import pisa
+    
     invoice = db.get_or_404(Invoice, invoice_id)
     booking = db.session.get(Booking, invoice.booking_id)
     room = db.session.get(Room, booking.room_id) if booking.room_id else None
     customer = db.session.get(Customer, booking.customer_id)
     
-    pdf_buffer = create_pdf_invoice(invoice, booking, customer, room)
+    rendered = render_template('invoice_pdf.html', invoice=invoice, booking=booking, room=room, customer=customer, hotel=get_hotel_settings(), now=datetime.now())
+    
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(rendered, dest=pdf_buffer)
+    pdf_buffer.seek(0)
+    
+    if pisa_status.err:
+        return pdf_buffer
     
     return send_file(
         pdf_buffer,
