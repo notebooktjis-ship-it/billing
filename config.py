@@ -4,10 +4,16 @@ from datetime import timedelta
 class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'snb-hotel-secret-key-2024'
     
-    # Database - Neon DB (PostgreSQL) with SQLite fallback
+    # Database - PostgreSQL with SQLite fallback
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
         'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance', 'snb_hotel.db').replace('\\', '/')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_size': 5,
+        'pool_recycle': 300,
+        'pool_pre_ping': True,
+        'max_overflow': 0,
+    }
     
     # Session
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8)
