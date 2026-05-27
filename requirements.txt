@@ -1,0 +1,16 @@
+Flask
+Flask-SQLAlchemy
+Flask-Bcrypt
+Flask-Login
+Flask-WTF
+WTForms
+SQLAlchemy
+reportlab
+python-dateutil
+Pillow
+Werkzeug
+email-validator
+python-dotenv
+psycopg2-binary
+boto3
+gunicorn

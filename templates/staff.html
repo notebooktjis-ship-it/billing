@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Staff Management - {{ hotel.name }}{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">All Staff Members</h3>
+        <a href="{{ url_for('new_staff') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Add Staff
+        </a>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if staff_list %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Username</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for staff in staff_list %}
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px;">
+                                    {{ staff.name[:2].upper() }}
+                                </div>
+                                <strong>{{ staff.name }}</strong>
+                            </div>
+                        </td>
+                        <td class="text-mono">{{ staff.username }}</td>
+                        <td>
+                            <span class="badge badge-{{ 'warning' if staff.role == 'admin' else 'primary' }}">
+                                {{ staff.role|title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if staff.is_active %}
+                            <span class="badge badge-success">Active</span>
+                            {% else %}
+                            <span class="badge badge-danger">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if staff.last_login %}
+                            {{ staff.last_login.strftime('%d %b %Y, %I:%M %p') }}
+                            {% else %}
+                            Never
+                            {% endif %}
+                        </td>
+                        <td>{{ staff.created_at.strftime('%d %b %Y') }}</td>
+                        <td>
+                            {% if staff.id != current_user.id %}
+                            <button onclick="toggleStaff({{ staff.id }})" class="btn btn-sm btn-{{ 'warning' if staff.is_active else 'success' }}">
+                                <i class="fas fa-{{ 'ban' if staff.is_active else 'check' }}"></i>
+                            </button>
+                            {% else %}
+                            <span class="badge badge-info">You</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-user-tie"></i>
+            <h3>No Staff Members</h3>
+            <p>Add your first staff member to get started</p>
+            <a href="{{ url_for('new_staff') }}" class="btn btn-primary" style="margin-top: 15px;">
+                <i class="fas fa-plus"></i> Add Staff
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

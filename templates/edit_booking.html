@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Booking - {{ hotel.name }}{% endblock %}
+{% block page_title %}Edit Booking{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Edit Booking: {{ booking.booking_id }}</h3>
+        <a href="{{ url_for('booking_detail', booking_id=booking.id) }}" class="btn btn-sm btn-outline">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+    <div class="card-body">
+        <div style="background: var(--warning-light); padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+            <p style="margin: 0;"><i class="fas fa-info-circle"></i> <strong>Note:</strong> Changing dates or persons will automatically recalculate the bill.</p>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <div>
+                <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Customer</h4>
+                <p style="margin: 0;"><strong>{{ customer.name }}</strong></p>
+                <p style="margin: 5px 0 0; color: var(--gray-500);">{{ customer.phone }}</p>
+            </div>
+            <div>
+                <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">{% if booking.booking_category == 'wedding' %}Wedding Package{% else %}Room{% endif %}</h4>
+                {% if booking.booking_category == 'wedding' %}
+                <p style="margin: 0;"><strong>{{ {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, 'Wedding Package') }}</strong></p>
+                <p style="margin: 5px 0 0; color: var(--gray-500);">{{ 'Rs. 15,000/day' if booking.wedding_package == 'all_9_ac' else 'Rs. 17,000/day' }}</p>
+                {% else %}
+                <p style="margin: 0;"><strong class="text-mono">{{ room.room_number if room else 'N/A' }}</strong></p>
+                <p style="margin: 5px 0 0; color: var(--gray-500);">{{ room.room_type|title if room else 'N/A' }} - Rs. {{ room.price_per_night|int if room else 0 }}/night</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <form method="POST">
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                <div class="form-group">
+                    <label class="form-label">Check-in Date *</label>
+                    <input type="date" name="check_in_date" class="form-control" value="{{ booking.check_in.strftime('%Y-%m-%d') }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Check-out Date *</label>
+                    <input type="date" name="check_out_date" class="form-control" value="{{ booking.check_out.strftime('%Y-%m-%d') }}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Purpose of Visit *</label>
+                    <select name="purpose_of_visit" class="form-control form-select" required>
+                        <option value="Business" {{ 'selected' if booking.purpose_of_visit == 'Business' else '' }}>Business</option>
+                        <option value="Personal/Holiday" {{ 'selected' if booking.purpose_of_visit == 'Personal/Holiday' else '' }}>Personal/Holiday</option>
+                        <option value="Medical" {{ 'selected' if booking.purpose_of_visit == 'Medical' else '' }}>Medical</option>
+                        <option value="Wedding" {{ 'selected' if booking.purpose_of_visit == 'Wedding' else '' }}>Wedding</option>
+                        <option value="Other" {{ 'selected' if booking.purpose_of_visit == 'Other' else '' }}>Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px;">
+                <div class="form-group">
+                    <label class="form-label">Number of Persons *</label>
+                    <input type="number" name="number_of_persons" class="form-control" value="{{ booking.number_of_persons }}" min="1" max="20" required>
+                    <small style="color: var(--gray-500);">
+                        {% if booking.booking_category == 'wedding' %}
+                        Wedding package - no extra person charges
+                        {% elif room and room.room_type in ['classic', 'standard', 'deluxe'] %}
+                        Free up to 2 persons. Extra @ Rs. 500/person/night
+                        {% else %}
+                        Free up to 3 persons. Extra @ Rs. 500/person/night
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+            
+            <div id="calculation-preview" style="background: var(--gray-50); padding: 20px; border-radius: 8px; margin-top: 20px;">
+                <h4 style="margin: 0 0 15px;">Calculation Preview</h4>
+                <table style="width: 100%; font-size: 14px;">
+                    {% if booking.booking_category == 'wedding' %}
+                    {% set package_rate = 15000 if booking.wedding_package == 'all_9_ac' else 17000 %}
+                    <tr>
+                        <td>Wedding Package ({{ booking.stay_duration }} nights)</td>
+                        <td style="text-align: right;">Rs. {{ package_rate }} x {{ booking.stay_duration }}</td>
+                        <td style="text-align: right;">Rs. {{ (package_rate * booking.stay_duration)|int }}</td>
+                    </tr>
+                    <tr style="border-top: 1px solid var(--gray-300);">
+                        <td style="padding-top: 10px;"><strong>New Total</strong></td>
+                        <td></td>
+                        <td style="text-align: right; font-weight: 700; color: var(--primary);">
+                            Rs. {{ (package_rate * booking.stay_duration)|int }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td>Room ({{ booking.stay_duration }} nights)</td>
+                        <td style="text-align: right;">Rs. {{ room.price_per_night|int if room else 0 }} x {{ booking.stay_duration }}</td>
+                        <td style="text-align: right;">Rs. {{ ((room.price_per_night if room else 0) * booking.stay_duration)|int }}</td>
+                    </tr>
+                    {% if booking.number_of_persons > 2 and room.room_type in ['classic', 'standard', 'deluxe'] %}
+                    <tr style="color: var(--warning);">
+                        <td>Extra Person Charges</td>
+                        <td style="text-align: right;">{{ booking.number_of_persons - 2 }} x Rs. 500</td>
+                        <td style="text-align: right;">Rs. {{ ((booking.number_of_persons - 2) * 500 * booking.stay_duration)|int }}</td>
+                    </tr>
+                    {% elif booking.number_of_persons > 3 and room.room_type == 'suite' %}
+                    <tr style="color: var(--warning);">
+                        <td>Extra Person Charges</td>
+                        <td style="text-align: right;">{{ booking.number_of_persons - 3 }} x Rs. 500</td>
+                        <td style="text-align: right;">Rs. {{ ((booking.number_of_persons - 3) * 500 * booking.stay_duration)|int }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr style="border-top: 1px solid var(--gray-300);">
+                        <td style="padding-top: 10px;"><strong>New Total</strong></td>
+                        <td></td>
+                        <td style="text-align: right; font-weight: 700; color: var(--primary);">
+                            Rs. {{ (booking.room_charge + booking.extra_person_charges)|int }}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Changes
+                </button>
+                <a href="{{ url_for('booking_detail', booking_id=booking.id) }}" class="btn btn-outline">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkInInput = document.querySelector('[name="check_in_date"]');
+    const checkOutInput = document.querySelector('[name="check_out_date"]');
+    const personsInput = document.querySelector('[name="number_of_persons"]');
+    const isWedding = {{ 'true' if booking.booking_category == 'wedding' else 'false' }};
+    const weddingPackage = '{{ booking.wedding_package or '' }}';
+    const roomPrice = {{ room.price_per_night|int if room else 0 }};
+    const roomType = '{{ room.room_type if room else '' }}';
+    
+    const weddingRates = {'all_9_ac': 15000, 'all_rooms': 17000};
+    const weddingNames = {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'};
+    
+    function calculateNights() {
+        const checkIn = new Date(checkInInput.value);
+        const checkOut = new Date(checkOutInput.value);
+        const diff = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+        return diff > 0 ? diff : 1;
+    }
+    
+    function updatePreview() {
+        const nights = calculateNights();
+        
+        let html = `
+            <h4 style="margin: 0 0 15px;">Calculation Preview</h4>
+            <table style="width: 100%; font-size: 14px;">`;
+        
+        if (isWedding) {
+            const pkgRate = weddingRates[weddingPackage] || 15000;
+            const pkgName = weddingNames[weddingPackage] || 'Wedding Package';
+            const total = pkgRate * nights;
+            html += `
+                <tr>
+                    <td>Wedding Package (${nights} nights)</td>
+                    <td style="text-align: right;">Rs. ${pkgRate.toLocaleString()} x ${nights}</td>
+                    <td style="text-align: right;">Rs. ${total.toLocaleString()}</td>
+                </tr>
+                <tr style="border-top: 1px solid var(--gray-300);">
+                    <td style="padding-top: 10px;"><strong>New Total</strong></td>
+                    <td></td>
+                    <td style="text-align: right; font-weight: 700; color: var(--primary);">
+                        Rs. ${total.toLocaleString()}
+                    </td>
+                </tr>`;
+        } else {
+            const persons = parseInt(personsInput.value) || 1;
+            let freePersons = roomType === 'suite' ? 3 : 2;
+            let extraPersons = persons > freePersons ? persons - freePersons : 0;
+            
+            const baseRoomCharge = roomPrice * nights;
+            const extraPersonCharge = extraPersons * 500 * nights;
+            const total = baseRoomCharge + extraPersonCharge;
+            
+            html += `
+                <tr>
+                    <td>Room (${nights} nights)</td>
+                    <td style="text-align: right;">Rs. ${roomPrice.toLocaleString()} x ${nights}</td>
+                    <td style="text-align: right;">Rs. ${baseRoomCharge.toLocaleString()}</td>
+                </tr>`;
+            
+            if (extraPersons > 0) {
+                html += `
+                <tr style="color: var(--warning);">
+                    <td>Extra Person Charges</td>
+                    <td style="text-align: right;">${extraPersons} x Rs. 500 x ${nights}</td>
+                    <td style="text-align: right;">Rs. ${extraPersonCharge.toLocaleString()}</td>
+                </tr>`;
+            }
+            
+            html += `
+                <tr style="border-top: 1px solid var(--gray-300);">
+                    <td style="padding-top: 10px;"><strong>New Total</strong></td>
+                    <td></td>
+                    <td style="text-align: right; font-weight: 700; color: var(--primary);">
+                        Rs. ${total.toLocaleString()}
+                    </td>
+                </tr>`;
+        }
+        
+        html += `</table>`;
+        document.getElementById('calculation-preview').innerHTML = html;
+    }
+    
+    checkInInput.addEventListener('change', updatePreview);
+    checkOutInput.addEventListener('change', updatePreview);
+    personsInput.addEventListener('input', updatePreview);
+    
+    updatePreview();
+});
+</script>
+{% endblock %}

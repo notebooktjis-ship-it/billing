@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Payments - {{ hotel.name }}{% endblock %}
+{% block page_title %}Payment History{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">All Payments</h3>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="search-bar" style="flex-wrap: wrap;">
+            <div class="search-input" style="flex: 0 0 auto;">
+                <label style="font-size: 12px; color: var(--gray-500);">From</label>
+                <input type="date" name="date_from" value="{{ request.args.get('date_from', '') }}" class="form-control">
+            </div>
+            <div class="search-input" style="flex: 0 0 auto;">
+                <label style="font-size: 12px; color: var(--gray-500);">To</label>
+                <input type="date" name="date_to" value="{{ request.args.get('date_to', '') }}" class="form-control">
+            </div>
+            <div style="flex: 0 0 auto; display: flex; align-items: flex-end; gap: 10px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+                <a href="{{ url_for('payments') }}" class="btn btn-outline">Clear</a>
+                <a href="{{ url_for('export_payments', **request.args) }}" class="btn btn-success">
+                    <i class="fas fa-file-csv"></i> Download CSV
+                </a>
+            </div>
+        </form>
+        
+        {% if payments %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Booking ID</th>
+                        <th>Phone Number</th>
+                        <th>ID Proof</th>
+                        <th>Check-in Date</th>
+                        <th>Check-in Time</th>
+                        <th>Check-out Date</th>
+                        <th>Check-out Time</th>
+                        <th>Amount Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.booking.customer.name }}</td>
+                        <td class="text-mono">
+                            <a href="{{ url_for('booking_detail', booking_id=payment.booking_id) }}">
+                                {{ payment.booking.booking_id }}
+                            </a>
+                        </td>
+                        <td>{{ payment.booking.customer.phone }}</td>
+                        <td>{{ payment.booking.customer.id_proof_number or '-' }}</td>
+                        <td>{{ payment.booking.check_in.strftime('%d %b %Y') }}</td>
+                        <td>{{ payment.booking.check_in.strftime('%I:%M %p') }}</td>
+                        <td>{{ payment.booking.check_out.strftime('%d %b %Y') }}</td>
+                        <td>{{ payment.booking.check_out.strftime('%I:%M %p') }}</td>
+                        <td class="text-mono" style="font-weight: 600; color: var(--success);">Rs. {{ payment.amount|int }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top: 20px; text-align: right;">
+            <strong>Total: Rs. {{ payments|sum(attribute='amount')|int }}</strong>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-credit-card"></i>
+            <h3>No Payments Found</h3>
+            <p>No payment records match your criteria</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

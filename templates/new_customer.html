@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}Add Customer - {{ hotel.name }}{% endblock %}
+{% block page_title %}Add New Customer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Customer Information</h3>
+        <a href="{{ url_for('customers') }}" class="btn btn-sm btn-outline">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="customerForm">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    {{ form.name(class="form-control", placeholder="Enter full name") }}
+                    {% if form.name.errors %}
+                    <span style="color: var(--danger); font-size: 12px;">{{ form.name.errors[0] }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number *</label>
+                    {{ form.phone(class="form-control", placeholder="Enter phone number") }}
+                    {% if form.phone.errors %}
+                    <span style="color: var(--danger); font-size: 12px;">{{ form.phone.errors[0] }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Age</label>
+                    {{ form.age(class="form-control", placeholder="Enter age", type="number", min="1", max="120") }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Number of Children</label>
+                    {{ form.number_of_children(class="form-control", placeholder="Enter number of children", type="number", min="0") }}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                {{ form.address(class="form-control", placeholder="Enter full address") }}
+            </div>
+            
+            <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--gray-200);">
+            <h4 style="margin-bottom: 20px; color: var(--primary);">ID Proof Details</h4>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">ID Proof Type</label>
+                    {{ form.id_proof_type(class="form-control form-select") }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ID Proof Number</label>
+                    {{ form.id_proof_number(class="form-control", placeholder="Enter ID number") }}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Upload ID Proof</label>
+                <input type="file" name="id_proof" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                <small style="color: var(--gray-500);">Accepted formats: JPG, PNG, PDF (Max 5MB)</small>
+            </div>
+            
+            <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--gray-200);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h4 style="margin: 0; color: var(--primary);">Accompanying Persons</h4>
+                <button type="button" class="btn btn-sm btn-outline" onclick="addPerson()">
+                    <i class="fas fa-plus"></i> Add Person
+                </button>
+            </div>
+            
+            <div id="accompanyingPersons">
+                <p style="color: var(--gray-500); font-style: italic;">No accompanying persons added yet. Click "Add Person" to add.</p>
+            </div>
+            
+            <input type="hidden" name="extra_persons_count" id="extra_persons_count" value="0">
+            
+            <div style="margin-top: 25px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Customer
+                </button>
+                <a href="{{ url_for('customers') }}" class="btn btn-outline">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let personCount = 0;
+
+function addPerson() {
+    const container = document.getElementById('accompanyingPersons');
+    const countInput = document.getElementById('extra_persons_count');
+    
+    if (personCount === 0) {
+        container.innerHTML = '';
+    }
+    
+    const personDiv = document.createElement('div');
+    personDiv.className = 'person-card';
+    personDiv.id = `person_${personCount}`;
+    personDiv.style.cssText = 'background: var(--gray-50); padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid var(--gray-200);';
+    
+    personDiv.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h5 style="margin: 0; color: var(--primary);">Person ${personCount + 1}</h5>
+            <button type="button" class="btn btn-sm btn-danger" onclick="removePerson(${personCount})">
+                <i class="fas fa-times"></i> Remove
+            </button>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" name="person_name_${personCount}" class="form-control" placeholder="Enter name" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="text" name="person_phone_${personCount}" class="form-control" placeholder="Enter phone number">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Age</label>
+                <input type="number" name="person_age_${personCount}" class="form-control" placeholder="Age" min="1" max="120">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label class="form-label">ID Proof Type</label>
+                <select name="person_id_type_${personCount}" class="form-control form-select">
+                    <option value="">Select ID Proof</option>
+                    <option value="aadhar">Aadhar Card</option>
+                    <option value="voter_id">Voter ID</option>
+                    <option value="driving_license">Driving License</option>
+                    <option value="passport">Passport</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">ID Proof Number</label>
+                <input type="text" name="person_id_number_${personCount}" class="form-control" placeholder="Enter ID number">
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(personDiv);
+    personCount++;
+    countInput.value = personCount;
+}
+
+function removePerson(index) {
+    const personDiv = document.getElementById(`person_${index}`);
+    if (personDiv) {
+        personDiv.remove();
+        personCount--;
+        document.getElementById('extra_persons_count').value = personCount;
+        
+        if (personCount === 0) {
+            document.getElementById('accompanyingPersons').innerHTML = '<p style="color: var(--gray-500); font-style: italic;">No accompanying persons added yet. Click "Add Person" to add.</p>';
+        }
+    }
+}
+</script>
+{% endblock %}

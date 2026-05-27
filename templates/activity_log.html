@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Activity Log - {{ hotel.name }}{% endblock %}
+{% block page_title %}Activity Log{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Recent Activities</h3>
+    </div>
+    <div class="card-body" style="padding: 0;">
+        {% if logs %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date & Time</th>
+                        <th>Staff</th>
+                        <th>Action</th>
+                        <th>Details</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at.strftime('%d %b %Y, %I:%M %p') }}</td>
+                        <td>{{ log.staff.name if log.staff else 'System' }}</td>
+                        <td>
+                            <span class="badge badge-primary">{{ log.action }}</span>
+                        </td>
+                        <td>{{ log.details or '-' }}</td>
+                        <td class="text-mono">{{ log.ip_address or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-history"></i>
+            <h3>No Activity</h3>
+            <p>Activity logs will appear here</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

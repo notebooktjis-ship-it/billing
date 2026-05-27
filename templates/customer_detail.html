@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}{{ customer.name }} - {{ hotel.name }}{% endblock %}
+{% block page_title %}{{ customer.name }}{% endblock %}
+
+{% block content %}
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Customer Details</h3>
+                <a href="{{ url_for('customers') }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+            <div class="card-body">
+                <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 25px;">
+                    <div style="width: 70px; height: 70px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 600;">
+                        {{ customer.name[:2].upper() }}
+                    </div>
+                    <div>
+                        <h3 style="margin: 0;">{{ customer.name }}</h3>
+                        <p style="color: var(--gray-500); margin: 5px 0 0;">
+                            <i class="fas fa-calendar"></i> Customer since {{ customer.created_at.strftime('%d %b %Y') }}
+                        </p>
+                    </div>
+                </div>
+                
+                <table style="width: 100%;">
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500); width: 120px;">Phone</td>
+                        <td style="padding: 10px 0; font-weight: 500;">{{ customer.phone }}</td>
+                    </tr>
+                    {% if customer.age %}
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Age</td>
+                        <td style="padding: 10px 0;">{{ customer.age }} years</td>
+                    </tr>
+                    {% endif %}
+                    {% if customer.number_of_children is not none %}
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Children</td>
+                        <td style="padding: 10px 0;">{{ customer.number_of_children }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Address</td>
+                        <td style="padding: 10px 0;">{{ customer.address or '-' }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">ID Proof</td>
+                        <td style="padding: 10px 0;">
+                            {% if customer.id_proof_type %}
+                            <span class="badge badge-info">{{ customer.id_proof_type|upper }}</span>
+                            {{ customer.id_proof_number }}
+                            {% else %}
+                            -
+                            {% endif %}
+                            {% if customer.id_proof_file %}
+                            <br>
+                            {% set proof_url = r2_url(customer.id_proof_file) or url_for('static', filename='uploads/' + customer.id_proof_file) %}
+                            <a href="{{ proof_url }}" target="_blank" style="display: inline-block; margin-top: 8px;">
+                                <img src="{{ proof_url }}" 
+                                     alt="ID Proof" style="width: 120px; height: auto; object-fit: cover; border-radius: 6px; border: 1px solid var(--gray-300);">
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px 0; color: var(--gray-500);">Total Stays</td>
+                        <td style="padding: 10px 0;">
+                            <span class="badge badge-{{ 'warning' if customer.total_stays > 3 else 'primary' }}">
+                                {{ customer.total_stays }}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+                
+                {% if customer.accompanying_persons %}
+                <div style="margin-top: 25px;">
+                    <h4 style="margin-bottom: 15px; color: var(--primary);">Accompanying Persons</h4>
+                    {% for ap in customer.accompanying_persons %}
+                    <div style="background: var(--gray-50); padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>{{ ap.name }}</strong>
+                            {% if ap.age %}<span style="color: var(--gray-500);">{{ ap.age }} yrs</span>{% endif %}
+                        </div>
+                        {% if ap.phone %}
+                        <div style="font-size: 13px; color: var(--gray-500); margin-top: 5px;">Phone: {{ ap.phone }}</div>
+                        {% endif %}
+                        {% if ap.id_proof_type %}
+                        <div style="font-size: 12px; color: var(--gray-400); margin-top: 3px;">
+                            <span class="badge badge-sm badge-info">{{ ap.id_proof_type|upper }}</span>
+                            {% if ap.id_proof_number %}{{ ap.id_proof_number }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div style="margin-top: 20px; display: flex; gap: 10px;">
+                    <a href="{{ url_for('edit_customer', customer_id=customer.id) }}" class="btn btn-primary">
+                        <i class="fas fa-edit"></i> Edit
+                    </a>
+                    <a href="{{ url_for('new_booking') }}?customer={{ customer.id }}" class="btn btn-success">
+                        <i class="fas fa-calendar-plus"></i> New Booking
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Booking History</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if bookings %}
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Room</th>
+                                <th>Persons</th>
+                                <th>Check-in</th>
+                                <th>Total</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for booking in bookings %}
+                            <tr>
+                                <td class="text-mono">
+                                    <a href="{{ url_for('booking_detail', booking_id=booking.id) }}">
+                                        {{ booking.booking_id }}
+                                    </a>
+                                </td>
+                                <td class="text-mono">{{ booking.room.room_number }}</td>
+                                <td>{{ booking.number_of_persons }}</td>
+                                <td>{{ booking.check_in.strftime('%d %b %Y') }}</td>
+                                <td class="text-mono">Rs. {{ "%.0f"|format(booking.total_amount) }}</td>
+                                <td>
+                                    <span class="badge badge-{{ 'success' if booking.status == 'checked_in' else 'info' if booking.status == 'checked_out' else 'danger' }}">
+                                        {{ booking.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 40px;">
+                    <i class="fas fa-calendar-times"></i>
+                    <h3>No Bookings Yet</h3>
+                    <p>This customer hasn't made any bookings</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

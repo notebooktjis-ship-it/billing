@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Bookings - {{ hotel.name }}{% endblock %}
+{% block page_title %}Bookings{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Bookings</h3>
+        <a href="{{ url_for('new_booking') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Check-in
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="filters">
+            <a href="{{ url_for('bookings') }}" class="filter-btn {% if not status or status == 'all' %}active{% endif %}">
+                All <span class="badge" style="margin-left: 5px;">{{ bookings|length if status == 'all' or not status else '' }}</span>
+            </a>
+            <a href="{{ url_for('bookings', status='checked_in') }}" class="filter-btn {% if status == 'checked_in' %}active{% endif %}">
+                Checked In
+            </a>
+            <a href="{{ url_for('bookings', status='checked_out') }}" class="filter-btn {% if status == 'checked_out' %}active{% endif %}">
+                Checked Out
+            </a>
+            <a href="{{ url_for('bookings', status='cancelled') }}" class="filter-btn {% if status == 'cancelled' %}active{% endif %}">
+                Cancelled
+            </a>
+        </div>
+        
+        {% if bookings %}
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Booking ID</th>
+                        <th>Customer</th>
+                        <th>Room</th>
+                        <th>Check-in</th>
+                        <th>Total</th>
+                        <th>Pending</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for booking in bookings %}
+                    {% set customer = booking.customer %}
+                    {% set room = booking.room %}
+                    <tr>
+                        <td class="text-mono">
+                            <a href="{{ url_for('booking_detail', booking_id=booking.id) }}">
+                                {{ booking.booking_id }}
+                            </a>
+                        </td>
+                        <td>{{ customer.name if customer else 'N/A' }}</td>
+                        <td class="text-mono">
+                            {% if booking.booking_category == 'wedding' %}
+                            <span style="color: var(--accent);">Wedding<br><small>{{ {'all_9_ac': 'All 9 AC', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, '') }}</small></span>
+                            {% else %}
+                            {{ room.room_number if room else 'N/A' }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if booking.actual_check_in %}
+                            {{ booking.actual_check_in.strftime('%d %b %Y') }}
+                            {% else %}
+                            {{ booking.check_in.strftime('%d %b %Y') }}
+                            {% endif %}
+                        </td>
+                        <td class="text-mono">
+                            Rs. {{ booking.total_amount|int }}
+                            <br><small style="color: var(--gray-500); font-size: 10px;">GST: {{ (booking.gst_amount|float / 2)|int }} + {{ (booking.gst_amount|float / 2)|int }}</small>
+                        </td>
+                        <td>
+                            {% if booking.pending_amount > 0 %}
+                            <span class="text-mono" style="color: var(--warning);">Rs. {{ booking.pending_amount|int }}</span>
+                            {% else %}
+                            <span style="color: var(--success);">Paid</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ 'success' if booking.status == 'checked_in' else 'info' if booking.status == 'checked_out' else 'danger' }}">
+                                {{ booking.status|replace('_', ' ')|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('booking_detail', booking_id=booking.id) }}" class="btn btn-sm btn-outline">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if booking.status == 'checked_in' %}
+                            <a href="{{ url_for('checkout', booking_id=booking.id) }}" class="btn btn-sm btn-success">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-calendar-times"></i>
+            <h3>No Bookings Found</h3>
+            <p>{% if status == 'checked_in' %}No active bookings. All guests have checked out.{% elif status == 'checked_out' %}No checked out bookings yet.{% elif status == 'cancelled' %}No cancelled bookings.{% else %}No bookings yet.{% endif %}</p>
+            <a href="{{ url_for('new_booking') }}" class="btn btn-primary" style="margin-top: 15px;">
+                <i class="fas fa-plus"></i> New Check-in
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

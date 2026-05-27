@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Customer - {{ hotel.name }}{% endblock %}
+{% block page_title %}Edit Customer{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Edit Customer Information</h3>
+        <a href="{{ url_for('customer_detail', customer_id=customer.id) }}" class="btn btn-sm btn-outline">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="customerForm">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    {{ form.name(class="form-control", placeholder="Enter full name") }}
+                    {% if form.name.errors %}
+                    <span style="color: var(--danger); font-size: 12px;">{{ form.name.errors[0] }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number *</label>
+                    {{ form.phone(class="form-control", placeholder="Enter phone number") }}
+                    {% if form.phone.errors %}
+                    <span style="color: var(--danger); font-size: 12px;">{{ form.phone.errors[0] }}</span>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Age</label>
+                    {{ form.age(class="form-control", placeholder="Enter age", type="number", min="1", max="120") }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Number of Children</label>
+                    {{ form.number_of_children(class="form-control", placeholder="Enter number of children", type="number", min="0") }}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                {{ form.address(class="form-control", placeholder="Enter full address") }}
+            </div>
+            
+            <hr style="margin: 25px 0; border: none; border-top: 1px solid var(--gray-200);">
+            <h4 style="margin-bottom: 20px; color: var(--primary);">ID Proof Details</h4>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">ID Proof Type</label>
+                    {{ form.id_proof_type(class="form-control form-select") }}
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ID Proof Number</label>
+                    {{ form.id_proof_number(class="form-control", placeholder="Enter ID number") }}
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Upload ID Proof</label>
+                <input type="file" name="id_proof" class="form-control" accept=".jpg,.jpeg,.png,.pdf">
+                <small style="color: var(--gray-500);">Accepted formats: JPG, PNG, PDF (Max 5MB)</small>
+                {% if customer.id_proof_file %}
+                <p style="margin-top: 5px; color: var(--success);">
+                    <i class="fas fa-check"></i> Current file: {{ customer.id_proof_file }}
+                </p>
+                {% endif %}
+            </div>
+            
+            <div style="margin-top: 25px;">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Update Customer
+                </button>
+                <a href="{{ url_for('customer_detail', customer_id=customer.id) }}" class="btn btn-outline">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

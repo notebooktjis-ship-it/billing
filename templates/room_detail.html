@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Room {{ room.room_number }} - {{ hotel.name }}{% endblock %}
+{% block page_title %}Room {{ room.room_number }}{% endblock %}
+
+{% block content %}
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Room Details</h3>
+                <a href="{{ url_for('rooms') }}" class="btn btn-sm btn-outline">
+                    <i class="fas fa-arrow-left"></i> Back
+                </a>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="form-group">
+                        <label class="form-label">Room Number</label>
+                        <input type="text" class="form-control" value="{{ room.room_number }}" disabled>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Room Type</label>
+                            {{ form.room_type(class="form-control form-select") }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Price per Night</label>
+                            {{ form.price_per_night(class="form-control", type="number", step="0.01") }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Status</label>
+                        {{ form.status(class="form-control form-select") }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Floor</label>
+                        <input type="text" class="form-control" value="Floor {{ room.floor }}" disabled>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Amenities</label>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            {% for amenity in room.get_amenities_list() %}
+                            <span class="badge badge-primary">{{ amenity }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Update Room
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Current Status</h3>
+            </div>
+            <div class="card-body">
+                <div style="text-align: center; padding: 30px;">
+                    <div class="room-status-badge {{ room.status }}" style="font-size: 14px; padding: 10px 20px; display: inline-block;">
+                        {{ room.status|title }}
+                    </div>
+                    
+                    {% if current_booking %}
+                    <div style="margin-top: 25px; text-align: left;">
+                        <h4 style="margin-bottom: 15px; color: var(--primary);">Current Guest</h4>
+                        <div style="background: var(--gray-50); padding: 15px; border-radius: 8px;">
+                            <p><strong>Name:</strong> {{ current_booking.customer.name }}</p>
+                            <p><strong>Phone:</strong> {{ current_booking.customer.phone }}</p>
+                            <p><strong>Booking ID:</strong> <span class="text-mono">{{ current_booking.booking_id }}</span></p>
+                            <p><strong>Check-in:</strong> {{ current_booking.check_in.strftime('%d %b %Y') }}</p>
+                            <p><strong>Check-out:</strong> {{ current_booking.check_out.strftime('%d %b %Y') }}</p>
+                            <p><strong>Nights:</strong> {{ current_booking.stay_duration }}</p>
+                            <p><strong>Room Charge:</strong> Rs. {{ current_booking.room_charge|int }}</p>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <a href="{{ url_for('checkout', booking_id=current_booking.id) }}" class="btn btn-success">
+                                <i class="fas fa-sign-out-alt"></i> Process Check-out
+                            </a>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="margin-top: 25px;">
+                        <p style="color: var(--gray-500);">No active booking for this room.</p>
+                        {% if room.status == 'available' %}
+                        <a href="{{ url_for('new_booking') }}" class="btn btn-primary" style="margin-top: 10px;">
+                            <i class="fas fa-user-plus"></i> New Check-in
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="card" style="margin-top: 25px;">
+            <div class="card-header">
+                <h3 class="card-title">Booking History</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if room.bookings %}
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Customer</th>
+                                <th>Check-in</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set sorted_bookings = room.bookings|sort(attribute='created_at', reverse=True) %}
+                            {% for booking in sorted_bookings %}
+                            {% if loop.index <= 5 %}
+                            <tr>
+                                <td class="text-mono">
+                                    <a href="{{ url_for('booking_detail', booking_id=booking.id) }}">
+                                        {{ booking.booking_id }}
+                                    </a>
+                                </td>
+                                <td>{{ booking.customer.name }}</td>
+                                <td>{{ booking.check_in.strftime('%d %b %Y') }}</td>
+                                <td>
+                                    <span class="badge badge-{{ 'success' if booking.status == 'checked_in' else 'info' if booking.status == 'checked_out' else 'danger' }}">
+                                        {{ booking.status|replace('_', ' ')|title }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 30px;">
+                    <p style="color: var(--gray-400);">No booking history</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

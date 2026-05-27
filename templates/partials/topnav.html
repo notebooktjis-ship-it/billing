@@ -1,0 +1,34 @@
+<nav class="top-nav">
+    <div class="top-nav-left">
+        <button class="menu-toggle">
+            <i class="fas fa-bars"></i>
+        </button>
+        <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+    </div>
+    
+    <div class="top-nav-right">
+        <span class="nav-time" id="current-time">
+            {{ datetime.now().strftime('%a, %d %b %Y %I:%M %p') }}
+        </span>
+        
+        <div class="user-dropdown">
+            <div class="user-avatar">
+                {{ current_user.name[:2].upper() }}
+            </div>
+            <div class="user-info">
+                <div class="user-name">{{ current_user.name }}</div>
+                <div class="user-role">{{ current_user.role|title }}</div>
+            </div>
+            <i class="fas fa-chevron-down" style="color: var(--gray-400); font-size: 10px; margin-left: 5px;"></i>
+            
+            <div class="dropdown-menu" style="display: none; position: absolute; top: 100%; right: 0; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 150px; padding: 8px 0; z-index: 100;">
+                <a href="{{ url_for('settings') }}" style="display: block; padding: 8px 15px; color: var(--gray-700); text-decoration: none; font-size: 13px;">
+                    <i class="fas fa-cog" style="width: 20px;"></i> Settings
+                </a>
+                <a href="{{ url_for('logout') }}" style="display: block; padding: 8px 15px; color: var(--danger); text-decoration: none; font-size: 13px;">
+                    <i class="fas fa-sign-out-alt" style="width: 20px;"></i> Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</nav>

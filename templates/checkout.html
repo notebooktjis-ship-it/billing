@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+
+{% block title %}Check-out - {{ hotel.name }}{% endblock %}
+{% block page_title %}Process Check-out{% endblock %}
+
+{% block content %}
+<div class="row" style="display: grid; grid-template-columns: 2fr 1fr; gap: 25px;">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Booking: {{ booking.booking_id }}</h3>
+                <div>
+                    <a href="{{ url_for('bookings') }}" class="btn btn-sm btn-outline">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                    <div>
+                        <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Customer</h4>
+                        <p style="margin: 0;"><strong>{{ customer.name }}</strong></p>
+                        <p style="margin: 5px 0 0; color: var(--gray-500);">{{ customer.phone }}</p>
+                        <p style="margin: 5px 0 0; color: var(--gray-500); font-size: 12px;">Persons: {{ booking.number_of_persons }}</p>
+                    </div>
+                    <div>
+                        <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">{% if booking.booking_category == 'wedding' %}Wedding Package{% else %}Room{% endif %}</h4>
+                        {% if booking.booking_category == 'wedding' %}
+                        <p style="margin: 0;"><strong>{{ {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, 'Wedding Package') }}</strong></p>
+                        <p style="margin: 5px 0 0; color: var(--gray-500);">{{ 'Rs. 15,000/day' if booking.wedding_package == 'all_9_ac' else 'Rs. 17,000/day' }}</p>
+                        {% else %}
+                        <p style="margin: 0;"><strong class="text-mono">{{ room.room_number if room else 'N/A' }}</strong></p>
+                        <p style="margin: 5px 0 0; color: var(--gray-500);">{{ room.room_type|title if room else 'N/A' }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                {% if booking.accompanying_persons %}
+                <div style="margin-bottom: 20px;">
+                    <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Accompanying Persons</h4>
+                    {% for ap in booking.accompanying_persons %}
+                    <span style="display: inline-block; background: var(--gray-100); padding: 5px 12px; border-radius: 15px; margin-right: 8px; font-size: 13px;">
+                        {{ ap.name }}{% if ap.phone %} ({{ ap.phone }}){% endif %}
+                    </span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; background: var(--gray-50); padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+                    <div style="text-align: center;">
+                        <p style="color: var(--gray-500); font-size: 12px; margin: 0;">Check-in</p>
+                        <p style="font-weight: 600; margin: 5px 0 0;">{{ booking.actual_check_in.strftime('%d %b %Y %I:%M %p') if booking.actual_check_in else booking.check_in.strftime('%d %b %Y %I:%M %p') }}</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="color: var(--gray-500); font-size: 12px; margin: 0;">Duration</p>
+                        <p style="font-weight: 600; margin: 5px 0 0;" id="stay-duration">{{ booking.stay_duration }} Night(s)</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="color: var(--gray-500); font-size: 12px; margin: 0;">Checkout</p>
+                        <p style="font-weight: 600; margin: 5px 0 0;" id="checkout-display">{{ booking.check_out.strftime('%d %b %Y') }}</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <p style="color: var(--gray-500); font-size: 12px; margin: 0;">Purpose</p>
+                        <p style="font-weight: 600; margin: 5px 0 0;">{{ booking.purpose_of_visit or '-' }}</p>
+                    </div>
+                </div>
+                
+                {% if booking.billing_name %}
+                <div style="background: var(--gray-50); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <h4 style="color: var(--gray-500); font-size: 12px; text-transform: uppercase; margin-bottom: 10px;">Bill To</h4>
+                    <p style="margin: 0;"><strong>{{ booking.billing_name }}</strong></p>
+                    {% if booking.company_gst %}<p style="margin: 5px 0 0; color: var(--gray-500);">GST: {{ booking.company_gst }}</p>{% endif %}
+                    {% if booking.company_address %}<p style="margin: 5px 0 0; color: var(--gray-500); font-size: 13px;">{{ booking.company_address }}</p>{% endif %}
+                </div>
+                {% endif %}
+                
+                <h4 style="margin-bottom: 15px;">Add Extra Charges</h4>
+                <form method="POST" style="display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap;">
+                    {{ extra_form.hidden_tag() }}
+                    <div style="flex: 1; min-width: 150px;">
+                        {{ extra_form.charge_type(class="form-control form-select") }}
+                    </div>
+                    <div style="flex: 2; min-width: 200px;">
+                        {{ extra_form.description(class="form-control", placeholder="Description (e.g., Paneer Butter Masala, 2x)") }}
+                    </div>
+                    <div style="flex: 1; min-width: 80px;">
+                        <input type="number" name="quantity" class="form-control" placeholder="Qty" value="1" min="1">
+                    </div>
+                    <div style="flex: 1; min-width: 120px;">
+                        {{ extra_form.amount(class="form-control", placeholder="Amount") }}
+                    </div>
+                    <button type="submit" name="add_extra_charge" value="1" class="btn btn-warning">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </form>
+                
+                {% if booking.extra_charges_list %}
+                <h4 style="margin-bottom: 15px;">Extra Charges Added</h4>
+                <table class="data-table" style="margin-bottom: 25px;">
+                    <thead>
+                        <tr>
+                            <th>Type</th>
+                            <th>Description</th>
+                            <th>Qty</th>
+                            <th>Amount</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for charge in booking.extra_charges_list %}
+                        <tr>
+                            <td>
+                                <span class="badge badge-warning">
+                                    {{ charge.charge_type|replace('_', ' ')|title }}
+                                </span>
+                            </td>
+                            <td>{{ charge.description or '-' }}</td>
+                            <td>{{ charge.quantity }}</td>
+                            <td class="text-mono">Rs. {{ "%.3f"|format(charge.amount) }}</td>
+                            <td>
+                                <button onclick="deleteCharge({{ charge.id }})" class="btn btn-sm btn-danger">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+                
+                <h4 style="margin-bottom: 15px;">Record Payment</h4>
+                <form method="POST">
+                    {{ payment_form.hidden_tag() }}
+                    <input type="hidden" name="add_payment" value="1">
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: end;">
+                        <div style="flex: 1; min-width: 150px;">
+                            <label class="form-label">Amount</label>
+                            {{ payment_form.amount(class="form-control", placeholder="0.00") }}
+                        </div>
+                        <div style="flex: 1; min-width: 150px;">
+                            <label class="form-label">Payment Method</label>
+                            {{ payment_form.payment_method(class="form-control form-select") }}
+                        </div>
+                        <div style="flex: 1; min-width: 200px;">
+                            <label class="form-label">Transaction ID (Optional)</label>
+                            {{ payment_form.transaction_id(class="form-control", placeholder="For UPI/Card") }}
+                        </div>
+                        <button type="submit" name="add_payment" value="1" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Add Payment
+                        </button>
+                    </div>
+                </form>
+                
+                {% if booking.payments %}
+                <div style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 10px;">Payments Received</h4>
+                    {% for payment in booking.payments %}
+                    <div style="display: flex; justify-content: space-between; padding: 10px; background: var(--success-light); border-radius: 6px; margin-bottom: 5px;">
+                        <span>
+                            <i class="fas fa-check-circle" style="color: var(--success);"></i>
+                            Rs. {{ "%.3f"|format(payment.amount) }} via {{ payment.payment_method|upper }}
+                        </span>
+                        <span style="color: var(--gray-500);">{{ payment.created_at.strftime('%d %b %Y %I:%M %p') }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div>
+        <div class="card" style="position: sticky; top: 90px;">
+            <div class="card-header">
+                <h3 class="card-title">Final Bill</h3>
+                <span class="badge {% if booking.gst_mode == 'include' %}badge-success{% else %}badge-warning{% endif %}">
+                    {{ 'GST Included' if booking.gst_mode == 'include' else 'GST Excluded' }}
+                </span>
+            </div>
+            <div class="card-body">
+                <table style="width: 100%; font-size: 14px;">
+                    {% if bill_data.gst_mode == 'include' %}
+                    <tr>
+                        <td style="padding: 8px 0; color: var(--gray-600);">Room Charge ({{ booking.stay_duration }} nights)</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.subtotal) }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td style="padding: 8px 0; color: var(--gray-600);">Room Charge ({{ booking.stay_duration }} nights)</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.base_room_charge) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if bill_data.extra_person_charges > 0 %}
+                    <tr style="color: var(--warning);">
+                        <td style="padding: 8px 0;">Extra Person Charges</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.extra_person_charges) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if bill_data.extra_charges > 0 %}
+                    <tr>
+                        <td style="padding: 8px 0; color: var(--gray-600);">Extra Charges</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.extra_charges) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if booking.discount > 0 %}
+                    <tr>
+                        <td style="padding: 8px 0; color: var(--success);">Discount</td>
+                        <td style="text-align: right; color: var(--success);" class="text-mono">-Rs. {{ "%.3f"|format(booking.discount) }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr style="border-top: 1px dashed var(--gray-300);">
+                        <td style="padding: 8px 0; color: var(--gray-600); font-weight: 600;">Base Price</td>
+                        <td style="text-align: right; font-weight: 600;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.base_price) }}</td>
+                    </tr>
+                    {% if bill_data.gst_amount > 0 %}
+                    <tr>
+                        <td style="padding: 8px 0;">
+                            {% if bill_data.gst_mode == 'include' %}
+                            <span style="color: var(--gray-500); font-size: 12px;">(Incl.) CGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%:</span>
+                            {% else %}
+                            <span style="color: var(--gray-600);">CGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; font-size: 12px;">Rs. {{ "%.3f"|format(bill_data.gst_amount / 2) }}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0;">
+                            {% if bill_data.gst_mode == 'include' %}
+                            <span style="color: var(--gray-500); font-size: 12px;">(Incl.) SGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%:</span>
+                            {% else %}
+                            <span style="color: var(--gray-600);">SGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align: right; font-size: 12px;">Rs. {{ "%.3f"|format(bill_data.gst_amount / 2) }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr style="border-top: 2px solid var(--primary);">
+                        <td style="padding: 12px 0; font-weight: 700; font-size: 16px;">Total Amount</td>
+                        <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);" class="text-mono">Rs. {{ "%.3f"|format(bill_data.total_amount) }}</td>
+                    </tr>
+                    {% if booking.advance_amount > 0 %}
+                    <tr>
+                        <td style="padding: 8px 0; color: var(--success);">Advance Paid</td>
+                        <td style="text-align: right; color: var(--success);" class="text-mono">-Rs. {{ "%.3f"|format(booking.advance_amount) }}</td>
+                    </tr>
+                    {% endif %}
+                    {% if bill_data.pending_amount > 0 %}
+                    <tr style="color: var(--danger);">
+                        <td style="padding: 8px 0; font-weight: 600;">Balance Due</td>
+                        <td style="text-align: right; font-weight: 600;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.pending_amount) }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+                
+                <form method="POST" style="margin-top: 25px;">
+                    <input type="hidden" name="process_checkout" value="1">
+                    
+                    <div class="form-group">
+                        <label class="form-label">Checkout Date & Time</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="date" name="checkout_date" id="checkout_date_input" class="form-control" required>
+                            <input type="time" name="checkout_time" id="checkout_time_input" class="form-control" required>
+                        </div>
+                        <button type="button" class="btn btn-warning btn-sm" style="margin-top: 10px;" onclick="updateCheckoutAndReload()">
+                            <i class="fas fa-sync"></i> Update Duration & Bill
+                        </button>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Discount (if any)</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" name="discount" id="discount_input" class="form-control" value="{{ booking.discount or 0 }}" min="0" step="1" style="flex: 1;">
+                            <button type="button" class="btn btn-warning btn-sm" onclick="updateDiscount(this)" style="white-space: nowrap;">
+                                <i class="fas fa-calculator"></i> Apply Discount
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success btn-lg" style="width: 100%;">
+                        <i class="fas fa-check-circle"></i> Complete Check-out
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Pre-fill checkout date/time from booking
+document.addEventListener('DOMContentLoaded', function() {
+    var dateInput = document.getElementById('checkout_date_input');
+    var timeInput = document.getElementById('checkout_time_input');
+    var checkoutDateTime = '{{ booking.check_out.strftime("%Y-%m-%d") if booking.check_out else "" }}';
+    var checkoutTime = '{{ booking.check_out.strftime("%H:%M") if booking.check_out else "12:00" }}';
+    
+    if (dateInput && !dateInput.value && checkoutDateTime) {
+        dateInput.value = checkoutDateTime;
+    }
+    if (timeInput && !timeInput.value && checkoutTime) {
+        timeInput.value = checkoutTime;
+    }
+});
+
+function updateCheckoutAndReload() {
+    var dateInput = document.getElementById('checkout_date_input');
+    var timeInput = document.getElementById('checkout_time_input');
+    
+    if (!dateInput || !dateInput.value) {
+        alert('Please select checkout date');
+        return;
+    }
+    
+    if (!timeInput || !timeInput.value) {
+        alert('Please select checkout time');
+        return;
+    }
+    
+    // Show loading
+    var btn = event.target;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+    btn.disabled = true;
+    
+    // Reload with new checkout date and time as query params
+    var url = window.location.pathname + '?checkout_date=' + dateInput.value + '&checkout_time=' + timeInput.value;
+    window.location.href = url;
+}
+
+function updateDiscount(btn) {
+    var discountInput = document.getElementById('discount_input');
+    if (!discountInput || !discountInput.value) {
+        alert('Please enter discount amount');
+        return;
+    }
+    if (parseFloat(discountInput.value) < 0) {
+        alert('Discount cannot be negative');
+        return;
+    }
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Applying...';
+    btn.disabled = true;
+    var url = window.location.pathname + '?discount=' + encodeURIComponent(discountInput.value);
+    window.location.href = url;
+}
+
+function deleteCharge(chargeId) {
+    if (confirm('Are you sure you want to delete this charge?')) {
+        fetch('/api/charges/' + chargeId, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').content || ''
+            }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error deleting charge: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(function(err) {
+            console.error('Error:', err);
+            alert('Error deleting charge');
+        });
+    }
+}
+</script>
+{% endblock %}

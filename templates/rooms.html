@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Rooms - {{ hotel.name }}{% endblock %}
+{% block page_title %}Room Management{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">All Rooms ({{ rooms|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="available">Available</button>
+            <button class="filter-btn" data-filter="occupied">Occupied</button>
+            <button class="filter-btn" data-filter="cleaning">Cleaning</button>
+            <button class="filter-btn" data-filter="maintenance">Maintenance</button>
+        </div>
+        
+        <div class="room-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+            {% for room in rooms %}
+            <div class="room-card {{ room.status }}" data-room-id="{{ room.id }}" data-type="{{ room.status }}">
+                <div class="room-number">{{ room.room_number }}</div>
+                <div class="room-type">{{ room.room_type|title }}</div>
+                <div class="room-price">Rs. {{ room.price_per_night|int }}/night</div>
+                <span class="room-status-badge {{ room.status }}">
+                    {{ room.status|title }}
+                </span>
+                {% if room.status == 'occupied' %}
+                    {% set booking = room.bookings|selectattr("status", "equalto", "checked_in")|list|first if room.bookings else none %}
+                    {% if booking %}
+                    <div style="margin-top: 10px; font-size: 11px; color: var(--gray-500);">
+                        <div>{{ booking.customer.name }}</div>
+                        <div class="text-mono">{{ booking.booking_id }}</div>
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        const filter = btn.dataset.filter;
+        document.querySelectorAll('.room-card').forEach(card => {
+            if (filter === 'all' || card.dataset.type === filter) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

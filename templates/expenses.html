@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Expenses - {{ hotel.name }}{% endblock %}
+{% block page_title %}Expense Management{% endblock %}
+
+{% block content %}
+<div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Add New Expense</h3>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Category *</label>
+                            {{ form.category(class="form-control form-select") }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Date *</label>
+                            {{ form.expense_date(class="form-control", type="date") }}
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Description *</label>
+                        {{ form.description(class="form-control", rows="3", placeholder="Enter expense description") }}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Amount (Rs.) *</label>
+                        {{ form.amount(class="form-control", placeholder="0.00", step="0.01") }}
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Expense
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div>
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Recent Expenses</h3>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                {% if expenses %}
+                <div class="table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Category</th>
+                                <th>Description</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for expense in expenses[:20] %}
+                            <tr>
+                                <td>{{ expense.expense_date.strftime('%d %b %Y') }}</td>
+                                <td>
+                                    <span class="badge badge-{{ 'info' if expense.category == 'utility' else 'warning' if expense.category == 'salary' else 'primary' }}">
+                                        {{ expense.category|title }}
+                                    </span>
+                                </td>
+                                <td>{{ expense.description[:50] }}{% if expense.description|length > 50 %}...{% endif %}</td>
+                                <td class="text-mono" style="color: var(--danger);">Rs. {{ expense.amount|int }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state" style="padding: 40px;">
+                    <i class="fas fa-wallet"></i>
+                    <h3>No Expenses</h3>
+                    <p>No expenses recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

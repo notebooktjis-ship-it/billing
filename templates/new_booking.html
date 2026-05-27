@@ -1,0 +1,774 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+.autocomplete-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+.autocomplete-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--gray-100);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.autocomplete-item:last-child {
+    border-bottom: none;
+}
+.autocomplete-item:hover {
+    background: var(--gray-50);
+}
+.autocomplete-item strong {
+    color: var(--dark);
+}
+.autocomplete-item small {
+    color: var(--gray-500);
+}
+</style>
+{% endblock %}
+
+{% block title %}New Booking - {{ hotel.name }}{% endblock %}
+{% block page_title %}New Check-in{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">New Booking</h3>
+        <a href="{{ url_for('bookings') }}" class="btn btn-sm btn-outline">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+    <div class="card-body">
+        <form method="POST" id="bookingForm" onsubmit="return validateForm()">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-group" style="margin-bottom: 25px;">
+                <label class="form-label">Booking Category *</label>
+                <div style="display: flex; gap: 20px; margin-top: 5px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 20px; border: 2px solid var(--primary); border-radius: 8px; background: var(--gray-50);" id="cat_normal_label">
+                        <input type="radio" name="booking_category" value="normal" checked onchange="toggleBookingCategory()">
+                        <span style="font-weight: 600;">Normal Booking</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 10px 20px; border: 2px solid var(--gray-300); border-radius: 8px;" id="cat_wedding_label">
+                        <input type="radio" name="booking_category" value="wedding" onchange="toggleBookingCategory()">
+                        <span style="font-weight: 600;">Wedding Booking</span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <h4 style="color: var(--primary); margin-bottom: 20px;">Customer Details</h4>
+                    
+                    <div class="form-group" style="position: relative;">
+                        <label class="form-label">Select Customer *</label>
+                        <div style="position: relative;">
+                            <input type="text" id="customer_search" class="form-control" placeholder="Type to search or click to see all..." autocomplete="off">
+                            <div id="customer_dropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                        </div>
+                        <input type="hidden" id="customer_id" name="customer_id" value="">
+                        <small style="color: var(--gray-500);">
+                            <a href="{{ url_for('new_customer') }}" target="_blank">
+                                <i class="fas fa-plus"></i> Add New Customer
+                            </a>
+                        </small>
+                    </div>
+                    
+                    <div id="customer-details-section" style="display: none;">
+                        <div id="customer-accompanying-persons"></div>
+                    </div>
+                    
+                    <div id="normal-persons-section">
+                        <div class="form-group">
+                            <label class="form-label">Number of Persons *</label>
+                            <input type="number" name="number_of_persons" id="number_of_persons" class="form-control" value="1" min="1" max="20" onchange="updateExtraPersonChargeUI()">
+                            <small style="color: var(--gray-500);">Total persons staying in the room (including main guest)</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">GST Mode *</label>
+                        <div style="display: flex; gap: 15px; margin-top: 5px;">
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="radio" name="gst_mode" value="exclude" checked>
+                                <span>Exclude GST <small style="color: var(--gray-500);">(GST will be added)</small></span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="radio" name="gst_mode" value="include">
+                                <span>Include GST <small style="color: var(--gray-500);">(GST included in price)</small></span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Purpose of Visit *</label>
+                        <input type="text" name="purpose_of_visit" id="purpose_of_visit" class="form-control" placeholder="Type or select purpose..." list="purpose-list" required>
+                        <datalist id="purpose-list">
+                            <option value="Business">
+                            <option value="Personal/Holiday">
+                            <option value="Medical">
+                            <option value="Wedding">
+                            <option value="Other">
+                        </datalist>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                            <input type="checkbox" id="company_billing" name="company_billing" style="width: 18px; height: 18px;">
+                            <span style="font-weight: 500;">Company Billing</span>
+                            <span style="color: var(--gray-500); font-size: 12px;">(Bill will be made in company name)</span>
+                        </label>
+                    </div>
+                    
+                    <div id="company-details" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Company Name *</label>
+                            {{ form.billing_name(class="form-control", placeholder="Enter company name for billing") }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Company GST Number</label>
+                            <input type="text" name="company_gst" class="form-control" placeholder="Enter company GST number">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Company Address</label>
+                            <input type="text" name="company_address" class="form-control" placeholder="Enter company billing address">
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 style="color: var(--primary); margin-bottom: 20px;">Room Details</h4>
+                    
+                    <div id="normal-room-section">
+                        <div class="form-group">
+                            <label class="form-label">Select Room *</label>
+                            {{ form.room_id(class="form-control form-select") }}
+                            {% if form.room_id.errors %}
+                            <span style="color: var(--danger); font-size: 12px;">{{ form.room_id.errors[0] }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div id="wedding-package-section" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Wedding Package *</label>
+                            <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 5px;">
+                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 15px; border: 2px solid var(--gray-300); border-radius: 8px;" id="pkg_all_9_ac_label">
+                                    <input type="radio" name="wedding_package" value="all_9_ac" onchange="toggleWeddingPackage()">
+                                    <div>
+                                        <span style="font-weight: 600;">All 9 AC Rooms</span>
+                                        <span style="display: block; font-size: 12px; color: var(--gray-500);">All AC rooms (Deluxe + Suite) - Rs. 15,000 per day</span>
+                                    </div>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 15px; border: 2px solid var(--gray-300); border-radius: 8px;" id="pkg_all_rooms_label">
+                                    <input type="radio" name="wedding_package" value="all_rooms" onchange="toggleWeddingPackage()">
+                                    <div>
+                                        <span style="font-weight: 600;">All Rooms</span>
+                                        <span style="display: block; font-size: 12px; color: var(--gray-500);">All rooms (Standard + Deluxe + Suite) - Rs. 17,000 per day</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Check-in Date *</label>
+                            {{ form.check_in(class="form-control", type="date") }}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Check-in Time *</label>
+                            <input type="time" name="check_in_time" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div style="background: var(--info-light); padding: 12px; border-radius: 8px; margin-top: 15px;">
+                        <p style="margin: 0; font-size: 12px; color: var(--info);">
+                            <i class="fas fa-info-circle"></i> 
+                            Check-out date and time will be set when guest checks out.
+                        </p>
+                    </div>
+                    
+                    <input type="hidden" name="check_out" value="">
+                    
+                    <div id="extra-person-info" style="background: var(--warning-light); padding: 15px; border-radius: 8px; margin-top: 15px; display: none;">
+                        <h5 style="margin: 0 0 10px; color: var(--warning);">
+                            <i class="fas fa-info-circle"></i> Extra Person Charges
+                        </h5>
+                        <p style="margin: 0; font-size: 13px;" id="extra-person-text"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <hr style="margin: 30px 0;">
+            
+            <h4 style="color: var(--primary); margin-bottom: 20px;">Payment Details</h4>
+            
+            <div class="form-group" style="max-width: 300px;">
+                <label class="form-label">Advance Amount</label>
+                {{ form.advance_amount(class="form-control", placeholder="0.00", type="number", step="0.01") }}
+                <small style="color: var(--gray-500);">Enter 0 if no advance is being taken</small>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                {{ form.notes(class="form-control", rows="3", placeholder="Any special instructions or requests...") }}
+            </div>
+            
+            <div id="booking-summary"></div>
+            
+            <div style="margin-top: 25px;">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-user-check"></i> Complete Check-in
+                </button>
+                <a href="{{ url_for('bookings') }}" class="btn btn-outline btn-lg">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const checkInInput = document.querySelector('[name="check_in"]');
+    const checkOutInput = document.querySelector('[name="check_out"]');
+    
+    const customerSearch = document.getElementById('customer_search');
+    const customerIdInput = document.getElementById('customer_id');
+    const customerDropdown = document.getElementById('customer_dropdown');
+    const customers = [
+        {% for c in customers %}
+        { id: {{ c.id }}, name: "{{ c.name }}", phone: "{{ c.phone }}" },
+        {% endfor %}
+    ];
+    
+    function showAllCustomers() {
+        if (customers.length > 0) {
+            let html = '';
+            customers.forEach(c => {
+                html += `<div class="autocomplete-item" onclick="selectCustomer(${c.id}, '${c.name} (${c.phone})')">
+                    <strong>${c.name}</strong> <small>${c.phone}</small>
+                </div>`;
+            });
+            customerDropdown.innerHTML = html;
+            customerDropdown.style.display = 'block';
+        }
+    }
+    
+    function filterCustomers(value) {
+        const searchValue = value.trim().toLowerCase();
+        
+        if (searchValue.length === 0) {
+            showAllCustomers();
+            return;
+        }
+        
+        const filtered = customers.filter(c => 
+            c.name.toLowerCase().includes(searchValue) || 
+            c.phone.includes(searchValue)
+        );
+        
+        if (filtered.length > 0) {
+            let html = '';
+            filtered.forEach(c => {
+                html += `<div class="autocomplete-item" onclick="selectCustomer(${c.id}, '${c.name} (${c.phone})')">
+                    <strong>${c.name}</strong> <small>${c.phone}</small>
+                </div>`;
+            });
+            customerDropdown.innerHTML = html;
+            customerDropdown.style.display = 'block';
+        } else {
+            customerDropdown.innerHTML = '<div class="autocomplete-item" style="color: var(--gray-500);">No customers found</div>';
+            customerDropdown.style.display = 'block';
+        }
+    }
+    
+    if (customerSearch && customerIdInput && customerDropdown) {
+        customerSearch.addEventListener('input', function() {
+            filterCustomers(this.value);
+        });
+        
+        customerSearch.addEventListener('click', function() {
+            if (this.value.trim().length === 0) {
+                showAllCustomers();
+            } else {
+                filterCustomers(this.value);
+            }
+        });
+        
+        customerSearch.addEventListener('focus', function() {
+            if (this.value.trim().length === 0) {
+                showAllCustomers();
+            } else {
+                filterCustomers(this.value);
+            }
+        });
+        
+        customerSearch.addEventListener('blur', function() {
+            setTimeout(() => {
+                customerDropdown.style.display = 'none';
+            }, 300);
+        });
+        
+        customerSearch.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                customerDropdown.style.display = 'none';
+            }
+        });
+    }
+    
+    window.selectCustomer = function(id, display) {
+        customerSearch.value = display;
+        customerIdInput.value = id;
+        customerDropdown.style.display = 'none';
+        loadCustomerDetails(id);
+    };
+    
+    checkInInput?.addEventListener('change', function() {
+        checkOutInput.min = this.value;
+        if (checkOutInput.value && checkOutInput.value < this.value) {
+            checkOutInput.value = this.value;
+        }
+        updateExtraPersonChargeUI();
+        calculateBillSummary();
+    });
+    
+    checkOutInput?.addEventListener('change', function() {
+        updateExtraPersonChargeUI();
+        calculateBillSummary();
+    });
+    document.querySelector('[name="room_id"]')?.addEventListener('change', function() {
+        updateExtraPersonChargeUI();
+        calculateBillSummary();
+    });
+    document.getElementById('number_of_persons')?.addEventListener('input', function() {
+        updateExtraPersonChargeUI();
+        calculateBillSummary();
+    });
+    
+    document.querySelectorAll('input[name="gst_mode"]').forEach(radio => {
+        radio.addEventListener('change', calculateBillSummary);
+    });
+    
+    updateExtraPersonChargeUI();
+    
+    function updateExtraPersonChargeUI() {
+        const isWedding = document.querySelector('input[name="booking_category"]:checked')?.value === 'wedding';
+        if (isWedding) {
+            const extraPersonInfo = document.getElementById('extra-person-info');
+            if (extraPersonInfo) extraPersonInfo.style.display = 'none';
+            return;
+        }
+        
+        const roomSelect = document.querySelector('[name="room_id"]');
+        const numberOfPersons = parseInt(document.getElementById('number_of_persons')?.value) || 1;
+        const extraPersonInfo = document.getElementById('extra-person-info');
+        const extraPersonText = document.getElementById('extra-person-text');
+        
+        if (!roomSelect?.value) {
+            if (extraPersonInfo) extraPersonInfo.style.display = 'none';
+            return;
+        }
+        
+        const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+        const roomText = selectedOption?.text || '';
+        const roomType = roomText.toLowerCase().includes('classic') ? 'classic' : 
+                        roomText.toLowerCase().includes('deluxe') ? 'deluxe' : 
+                        roomText.toLowerCase().includes('suite') ? 'suite' : 'classic';
+        
+        let threshold = 2;
+        let roomTypeName = 'Standard/Deluxe';
+        if (roomType === 'suite') {
+            threshold = 3;
+            roomTypeName = 'Suite';
+        }
+        
+        if (extraPersonInfo && extraPersonText) {
+            if (numberOfPersons > threshold) {
+                const extraPersons = numberOfPersons - threshold;
+                extraPersonInfo.style.display = 'block';
+                extraPersonText.innerHTML = `<b>${roomTypeName} Room:</b> Free for up to ${threshold} persons.<br>Extra person charge: <b>Rs. 500 per person per night</b><br>(${extraPersons} extra person(s) will be charged @ Rs. 500/night)`;
+            } else {
+                extraPersonInfo.style.display = 'none';
+            }
+        }
+        
+        calculateBillSummary();
+    }
+    
+    function calculateBillSummary() {
+        const isWedding = document.querySelector('input[name="booking_category"]:checked')?.value === 'wedding';
+        const checkIn = checkInInput?.value;
+        
+        if (isWedding) {
+            calculateWeddingSummary();
+            return;
+        }
+        
+        const checkOut = checkOutInput?.value;
+        const roomSelect = document.querySelector('[name="room_id"]');
+        
+        if (!roomSelect?.value) {
+            return;
+        }
+        
+        const selectedOption = roomSelect.options[roomSelect.selectedIndex];
+        const roomText = selectedOption?.text || '';
+        const basePrice = parseFloat(roomText.match(/Rs\.\s*([\d,]+)/)?.[1]?.replace(',', '') || 0);
+        const roomType = roomText.toLowerCase().includes('classic') ? 'classic' : 
+                        roomText.toLowerCase().includes('deluxe') ? 'deluxe' : 
+                        roomText.toLowerCase().includes('suite') ? 'suite' : 'classic';
+        
+        if (basePrice <= 0) return;
+        
+        const gstMode = document.querySelector('input[name="gst_mode"]:checked')?.value || 'exclude';
+        const gstRate = 5;
+        let pricePerNight = basePrice;
+        
+        if (gstMode === 'include') {
+            pricePerNight = basePrice / (1 + gstRate / 100);
+        }
+        
+        let nights = 1;
+        if (checkIn && checkOut) {
+            const checkInDate = new Date(checkIn);
+            const checkOutDate = new Date(checkOut);
+            nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+            if (nights < 1) nights = 1;
+        }
+        
+        const numberOfPersons = parseInt(document.getElementById('number_of_persons')?.value) || 1;
+        let extraPersonCharge = 0;
+        let extraPersons = 0;
+        
+        if (roomType === 'classic' || roomType === 'deluxe') {
+            if (numberOfPersons > 2) {
+                extraPersons = numberOfPersons - 2;
+                extraPersonCharge = extraPersons * 500 * nights;
+            }
+        } else if (roomType === 'suite') {
+            if (numberOfPersons > 3) {
+                extraPersons = numberOfPersons - 3;
+                extraPersonCharge = extraPersons * 500 * nights;
+            }
+        }
+        
+        const totalBase = pricePerNight * nights;
+        const subtotal = totalBase + extraPersonCharge;
+        let gstAmount = 0;
+        
+        if (gstMode === 'exclude') {
+            gstAmount = subtotal * (gstRate / 100);
+        }
+        
+        const totalAmount = subtotal + gstAmount;
+        
+        showSummary(nights, pricePerNight, basePrice, totalBase, extraPersonCharge, extraPersons, gstAmount, gstMode, gstRate, totalAmount, null, null);
+    }
+    
+    function calculateWeddingSummary() {
+        const weddingPackage = document.querySelector('input[name="wedding_package"]:checked')?.value;
+        if (!weddingPackage) {
+            document.getElementById('booking-summary').innerHTML = '';
+            return;
+        }
+        
+        const checkIn = checkInInput?.value;
+        const checkOut = checkOutInput?.value;
+        const gstMode = document.querySelector('input[name="gst_mode"]:checked')?.value || 'exclude';
+        const gstRate = 5;
+        
+        let packageName = '';
+        let packageRate = 0;
+        if (weddingPackage === 'all_9_ac') {
+            packageName = 'All 9 AC Rooms';
+            packageRate = 15000;
+        } else {
+            packageName = 'All Rooms';
+            packageRate = 17000;
+        }
+        
+        let nights = 1;
+        if (checkIn && checkOut) {
+            const checkInDate = new Date(checkIn);
+            const checkOutDate = new Date(checkOut);
+            nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+            if (nights < 1) nights = 1;
+        }
+        
+        const totalBase = packageRate * nights;
+        const subtotal = totalBase;
+        let gstAmount = 0;
+        
+        if (gstMode === 'exclude') {
+            gstAmount = subtotal * (gstRate / 100);
+        }
+        
+        const totalAmount = gstMode === 'exclude' ? subtotal + gstAmount : subtotal;
+        
+        showSummary(nights, packageRate, packageRate, totalBase, 0, 0, gstAmount, gstMode, gstRate, totalAmount, weddingPackage, packageName);
+    }
+    
+    function showSummary(nights, basePrice, displayPrice, totalBase, extraPersonCharge, extraPersons, gstAmount, gstMode, gstRate, totalAmount, weddingPackage, packageName) {
+        const summaryDiv = document.getElementById('booking-summary');
+        const isWedding = document.querySelector('input[name="booking_category"]:checked')?.value === 'wedding';
+        if (summaryDiv) {
+            const cgst = gstAmount / 2;
+            const sgst = gstAmount / 2;
+            const base = totalBase + extraPersonCharge - gstAmount;
+            
+            let html = `
+                <div style="background: var(--gray-50); padding: 20px; border-radius: 8px; margin-top: 20px;">
+                    <h4 style="margin: 0 0 15px;">Booking Summary</h4>
+                    <table style="width: 100%;">`;
+            
+            if (isWedding) {
+                html += `
+                        <tr>
+                            <td>Wedding Package</td>
+                            <td style="text-align: right; font-weight: 600;">${packageName}</td>
+                        </tr>
+                        <tr>
+                            <td>Number of Nights</td>
+                            <td style="text-align: right; font-weight: 600;">${nights}</td>
+                        </tr>
+                        <tr>
+                            <td>Package Rate per Night</td>
+                            <td style="text-align: right;">Rs. ${Math.round(basePrice).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td>Total Package Charge (${nights} nights)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(totalBase).toLocaleString()}</td>
+                        </tr>`;
+            } else {
+                html += `
+                        <tr>
+                            <td>Number of Nights</td>
+                            <td style="text-align: right; font-weight: 600;">${nights}</td>
+                        </tr>
+                        <tr>
+                            <td>Rate per Night</td>
+                            <td style="text-align: right;">Rs. ${Math.round(basePrice).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td>Room Charge (${nights} nights)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(totalBase).toLocaleString()}</td>
+                        </tr>`;
+            }
+            
+            if (extraPersonCharge > 0) {
+                html += `
+                        <tr style="color: var(--warning);">
+                            <td>Extra Person Charges (${extraPersons} x Rs. 500 x ${nights})</td>
+                            <td style="text-align: right;">Rs. ${Math.round(extraPersonCharge).toLocaleString()}</td>
+                        </tr>`;
+            }
+            
+            if (gstMode === 'exclude') {
+                html += `
+                        <tr style="border-top: 1px dashed var(--gray-300);">
+                            <td style="padding-top: 8px;">Subtotal</td>
+                            <td style="text-align: right; padding-top: 8px;">Rs. ${Math.round(totalBase + extraPersonCharge).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td>CGST (${gstRate/2}%)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(cgst).toLocaleString()}</td>
+                        </tr>
+                        <tr>
+                            <td>SGST (${gstRate/2}%)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(sgst).toLocaleString()}</td>
+                        </tr>`;
+            } else {
+                html += `
+                        <tr style="color: var(--gray-500); font-size: 12px;">
+                            <td>(Incl.) CGST (${gstRate/2}%)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(cgst).toLocaleString()}</td>
+                        </tr>
+                        <tr style="color: var(--gray-500); font-size: 12px;">
+                            <td>(Incl.) SGST (${gstRate/2}%)</td>
+                            <td style="text-align: right;">Rs. ${Math.round(sgst).toLocaleString()}</td>
+                        </tr>
+                        <tr style="border-top: 1px dashed var(--gray-300);">
+                            <td style="padding-top: 8px; color: var(--gray-600);">Base Price</td>
+                            <td style="text-align: right; padding-top: 8px;">Rs. ${Math.round(base).toLocaleString()}</td>
+                        </tr>`;
+            }
+            
+            html += `
+                        <tr style="border-top: 2px solid var(--primary);">
+                            <td style="font-weight: 700; padding-top: 10px;">Total Amount</td>
+                            <td style="text-align: right; font-weight: 700; padding-top: 10px; color: var(--primary);">Rs. ${Math.round(totalAmount).toLocaleString()}</td>
+                        </tr>
+                    </table>
+                </div>
+            `;
+            summaryDiv.innerHTML = html;
+        }
+    }
+    
+    function loadCustomerDetails(customerId) {
+        if (!customerId) {
+            customerId = document.getElementById('customer_id')?.value;
+        }
+        
+        const section = document.getElementById('customer-details-section');
+        const personsDiv = document.getElementById('customer-accompanying-persons');
+        
+        if (!customerId || customerId === '0' || customerId === '') {
+            section.style.display = 'none';
+            return;
+        }
+        
+        fetch(`/api/customers/${customerId}`)
+            .then(r => r.json())
+            .then(data => {
+                section.style.display = 'block';
+                if (data.accompanying_persons && data.accompanying_persons.length > 0) {
+                    let html = '<div style="background: var(--gray-50); padding: 15px; border-radius: 8px; margin-top: 15px;"><h5 style="margin: 0 0 10px;">Accompanying Persons:</h5>';
+                    data.accompanying_persons.forEach((p, i) => {
+                        html += `
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                <input type="checkbox" name="accompanying_person_ids" value="${p.id}" id="ap_${p.id}" checked>
+                                <label for="ap_${p.id}" style="margin: 0; cursor: pointer;">
+                                    ${p.name}${p.phone ? ' (Ph: ' + p.phone + ')' : ''}
+                                </label>
+                            </div>`;
+                    });
+                    html += '</div>';
+                    personsDiv.innerHTML = html;
+                    
+                    const totalPersons = data.accompanying_persons.length + 1;
+                    document.getElementById('number_of_persons').value = totalPersons;
+                } else {
+                    personsDiv.innerHTML = '';
+                }
+                updateExtraPersonChargeUI();
+            })
+            .catch(err => {
+                console.error('Error loading customer:', err);
+                section.style.display = 'none';
+            });
+    }
+    
+    const companyBillingCheckbox = document.getElementById('company_billing');
+    const companyDetails = document.getElementById('company-details');
+    const billingNameInput = document.querySelector('[name="billing_name"]');
+    
+    if (companyBillingCheckbox && companyDetails) {
+        companyBillingCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                companyDetails.style.display = 'block';
+                if (billingNameInput) {
+                    billingNameInput.placeholder = 'Enter company name for billing';
+                }
+            } else {
+                companyDetails.style.display = 'none';
+                if (billingNameInput) {
+                    billingNameInput.value = '';
+                    billingNameInput.placeholder = 'Enter billing name for invoice';
+                }
+            }
+        });
+    }
+    
+    window.toggleBookingCategory = function() {
+        const isWedding = document.querySelector('input[name="booking_category"]:checked')?.value === 'wedding';
+        const normalRoomSection = document.getElementById('normal-room-section');
+        const weddingPackageSection = document.getElementById('wedding-package-section');
+        const normalPersonsSection = document.getElementById('normal-persons-section');
+        const catNormalLabel = document.getElementById('cat_normal_label');
+        const catWeddingLabel = document.getElementById('cat_wedding_label');
+        
+        if (isWedding) {
+            normalRoomSection.style.display = 'none';
+            weddingPackageSection.style.display = 'block';
+            normalPersonsSection.style.display = 'none';
+            catNormalLabel.style.borderColor = 'var(--gray-300)';
+            catNormalLabel.style.background = 'transparent';
+            catWeddingLabel.style.borderColor = 'var(--primary)';
+            catWeddingLabel.style.background = 'var(--gray-50)';
+        } else {
+            normalRoomSection.style.display = 'block';
+            weddingPackageSection.style.display = 'none';
+            normalPersonsSection.style.display = 'block';
+            catWeddingLabel.style.borderColor = 'var(--gray-300)';
+            catWeddingLabel.style.background = 'transparent';
+            catNormalLabel.style.borderColor = 'var(--primary)';
+            catNormalLabel.style.background = 'var(--gray-50)';
+        }
+        calculateBillSummary();
+    };
+    
+    window.toggleWeddingPackage = function() {
+        const isAll9Ac = document.querySelector('input[name="wedding_package"][value="all_9_ac"]')?.checked;
+        const pkgAll9AcLabel = document.getElementById('pkg_all_9_ac_label');
+        const pkgAllRoomsLabel = document.getElementById('pkg_all_rooms_label');
+        
+        if (isAll9Ac) {
+            pkgAll9AcLabel.style.borderColor = 'var(--primary)';
+            pkgAll9AcLabel.style.background = 'var(--gray-50)';
+            pkgAllRoomsLabel.style.borderColor = 'var(--gray-300)';
+            pkgAllRoomsLabel.style.background = 'transparent';
+        } else {
+            pkgAllRoomsLabel.style.borderColor = 'var(--primary)';
+            pkgAllRoomsLabel.style.background = 'var(--gray-50)';
+            pkgAll9AcLabel.style.borderColor = 'var(--gray-300)';
+            pkgAll9AcLabel.style.background = 'transparent';
+        }
+        calculateBillSummary();
+    };
+    
+    document.querySelectorAll('input[name="wedding_package"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            calculateBillSummary();
+        });
+    });
+});
+
+function validateForm() {
+    const customerId = document.getElementById('customer_id')?.value;
+    const checkIn = document.querySelector('[name="check_in"]')?.value;
+    const isWedding = document.querySelector('input[name="booking_category"]:checked')?.value === 'wedding';
+    
+    if (!customerId || customerId === '0' || customerId === '') {
+        alert('Please select a customer first');
+        return false;
+    }
+    
+    if (isWedding) {
+        const weddingPackage = document.querySelector('input[name="wedding_package"]:checked')?.value;
+        if (!weddingPackage) {
+            alert('Please select a wedding package');
+            return false;
+        }
+    } else {
+        const roomId = document.querySelector('[name="room_id"]')?.value;
+        if (!roomId || roomId === '0') {
+            alert('Please select a room');
+            return false;
+        }
+    }
+    
+    if (!checkIn) {
+        alert('Please select check-in date');
+        return false;
+    }
+    
+    return true;
+}
+</script>
+{% endblock %}

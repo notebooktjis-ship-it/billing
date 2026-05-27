@@ -1,0 +1,111 @@
+<nav class="sidebar">
+    <div class="sidebar-header">
+        <a href="{{ url_for('dashboard') }}" class="sidebar-logo">
+            <i class="fas fa-hotel"></i>
+            <span>{{ hotel.name|default('HOTEL SHRI GOVIND') }}</span>
+        </a>
+    </div>
+    
+    <div class="sidebar-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-th-large"></i>
+                Dashboard
+            </a>
+        </div>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('bookings') }}" class="nav-link {% if 'booking' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-calendar-check"></i>
+                Bookings
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('rooms') }}" class="nav-link {% if request.endpoint == 'rooms' or 'room' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-door-open"></i>
+                Rooms
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('customers') }}" class="nav-link {% if 'customer' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-users"></i>
+                Customers
+            </a>
+        </div>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('payments') }}" class="nav-link {% if request.endpoint == 'payments' %}active{% endif %}">
+                <i class="fas fa-credit-card"></i>
+                Payments
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('invoices') }}" class="nav-link {% if 'invoice' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-file-invoice-dollar"></i>
+                Invoices
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('expenses') }}" class="nav-link {% if request.endpoint == 'expenses' %}active{% endif %}">
+                <i class="fas fa-wallet"></i>
+                Expenses
+            </a>
+        </div>
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' or 'report' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-chart-bar"></i>
+                Reports
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('history') }}" class="nav-link {% if request.endpoint == 'history' %}active{% endif %}">
+                <i class="fas fa-history"></i>
+                History
+            </a>
+        </div>
+        
+        {% if current_user.is_admin() %}
+        <div class="nav-item">
+            <a href="{{ url_for('staff') }}" class="nav-link {% if 'staff' in request.endpoint %}active{% endif %}">
+                <i class="fas fa-user-tie"></i>
+                Staff
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('activity_log') }}" class="nav-link {% if request.endpoint == 'activity_log' %}active{% endif %}">
+                <i class="fas fa-history"></i>
+                Activity Log
+            </a>
+        </div>
+        {% endif %}
+        
+        <div class="nav-divider"></div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('settings') }}" class="nav-link {% if request.endpoint == 'settings' %}active{% endif %}">
+                <i class="fas fa-cog"></i>
+                Settings
+            </a>
+        </div>
+        
+        <div class="nav-item">
+            <a href="{{ url_for('logout') }}" class="nav-link">
+                <i class="fas fa-sign-out-alt"></i>
+                Logout
+            </a>
+        </div>
+    </div>
+</nav>

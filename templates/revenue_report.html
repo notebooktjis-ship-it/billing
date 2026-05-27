@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Revenue Report - {{ hotel.name }}{% endblock %}
+{% block page_title %}Revenue Report{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Revenue Report - {{ month|month_name }} {{ year }}</h3>
+        <div style="display: flex; gap: 10px;">
+            <form method="GET" style="display: flex; gap: 10px;">
+                <select name="month" class="form-control form-select" style="width: auto;">
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m|month_name }}</option>
+                    {% endfor %}
+                </select>
+                <select name="year" class="form-control form-select" style="width: auto;">
+                    {% for y in range(year-2, year+1) %}
+                    <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter"></i> Filter
+                </button>
+            </form>
+            <button onclick="exportReport('revenue', {{ month }}, {{ year }})" class="btn btn-success">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 30px;">
+            <div class="stat-card">
+                <div class="stat-icon success">
+                    <i class="fas fa-rupee-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Rs. {{ revenue|int }}</h3>
+                    <p>Total Revenue</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon danger">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Rs. {{ expenses|int }}</h3>
+                    <p>Total Expenses</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon warning">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>Rs. {{ profit|int }}</h3>
+                    <p>Net Profit</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon primary">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="stat-content">
+                    <h3>{{ bookings_count }}</h3>
+                    <p>Total Bookings</p>
+                </div>
+            </div>
+        </div>
+        
+        <h4 style="margin-bottom: 15px;">Daily Breakdown</h4>
+        <div class="table-wrapper">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th style="text-align: right;">Revenue</th>
+                        <th style="text-align: right;">Expense</th>
+                        <th style="text-align: right;">Profit/Loss</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in daily_data %}
+                    <tr>
+                        <td>{{ day.date }}</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ day.revenue|int }}</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ day.expense|int }}</td>
+                        <td style="text-align: right;" class="text-mono">
+                            <span style="color: {% if day.profit >= 0 %}var(--success){% else %}var(--danger){% endif %};">
+                                Rs. {{ day.profit|int }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Login - {{ hotel.name }}{% endblock %}
+
+{% block body %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            <h1><i class="fas fa-hotel" style="color: var(--accent);"></i> SNB <span>Hotel</span></h1>
+            <p>Hotel Management & Billing System</p>
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" style="margin-bottom: 20px;">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <form method="POST" action="{{ url_for('login') }}" class="login-form">
+            {{ form.hidden_tag() }}
+            
+            <div class="form-group">
+                <label for="username">Username</label>
+                {{ form.username(class="form-control", placeholder="Enter your username") }}
+                {% if form.username.errors %}
+                    <span class="error" style="color: var(--danger); font-size: 12px;">
+                        {{ form.username.errors[0] }}
+                    </span>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password</label>
+                {{ form.password(class="form-control", placeholder="Enter your password") }}
+                {% if form.password.errors %}
+                    <span class="error" style="color: var(--danger); font-size: 12px;">
+                        {{ form.password.errors[0] }}
+                    </span>
+                {% endif %}
+            </div>
+            
+            <button type="submit" class="login-btn">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--gray-200);">
+            <p style="color: var(--gray-500); font-size: 12px;">
+                Default credentials: admin / admin123
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
