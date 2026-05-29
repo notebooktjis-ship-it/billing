@@ -27,7 +27,14 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-import weasyprint
+
+# Try to import weasyprint, but make it optional for Vercel compatibility
+try:
+    import weasyprint
+    HAS_WEASYPRINT = True
+except ImportError:
+    HAS_WEASYPRINT = False
+
 import os
 
 app = Flask(__name__)
@@ -1692,7 +1699,13 @@ def download_invoice(invoice_id):
                            now=datetime.now())
     
     pdf_buffer = BytesIO()
-    weasyprint.HTML(string=html).write_pdf(pdf_buffer)
+    
+    if HAS_WEASYPRINT:
+        weasyprint.HTML(string=html).write_pdf(pdf_buffer)
+    else:
+        # Fallback: Return HTML for viewing/printing if weasyprint is not available
+        return Response(html, mimetype='text/html')
+    
     pdf_buffer.seek(0)
     
     return send_file(
