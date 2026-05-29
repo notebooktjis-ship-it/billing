@@ -648,8 +648,11 @@ def create_pdf_invoice(invoice, booking, customer, room):
     ], colWidths=[col_width, col_width, col_width])
     info_table.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
     elements.append(info_table)
     elements.append(Spacer(1, 15))
@@ -726,13 +729,18 @@ def create_pdf_invoice(invoice, booking, customer, room):
     else:
         charges_data.append([P('', fs=10), P('', fs=10), P('<b>Paid:</b>', fs=10, c=SUCCESS, a=TA_RIGHT), P('<b>PAID</b>', fs=10, c=SUCCESS, a=TA_RIGHT, fn='Courier')])
     
-    charges_table = Table(charges_data, colWidths=[270, 50, 110, 120])
+    charges_table = Table(charges_data, colWidths=[260, 60, 110, 120])
     table_style = [
         ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
         ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
+        ('ALIGN', (2, 0), (3, -1), 'RIGHT'),
+        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
     ]
     charges_table.setStyle(TableStyle(table_style))
     elements.append(charges_table)
