@@ -1724,7 +1724,8 @@ def download_invoice(invoice_id):
         pdf.set_font("Arial", "B", 10)
         pdf.cell(0, 4, "BOOKING DETAILS:", ln=True)
         pdf.set_font("Arial", size=9)
-        pdf.cell(0, 4, f"Room: {room.room_name if room else 'N/A'}", ln=True)
+        room_info = f"{room.room_number} ({room.room_type})" if room else 'N/A'
+        pdf.cell(0, 4, f"Room: {room_info}", ln=True)
         pdf.cell(0, 4, f"Check-in: {booking.check_in_date}", ln=True)
         pdf.cell(0, 4, f"Check-out: {booking.check_out_date}", ln=True)
         pdf.cell(0, 4, f"Duration: {booking.stay_duration} nights", ln=True)
