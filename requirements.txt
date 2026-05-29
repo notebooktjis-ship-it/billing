@@ -14,5 +14,3 @@ python-dotenv
 psycopg2-binary
 boto3
 gunicorn
-xhtml2pdf
-html5lib

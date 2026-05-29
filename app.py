@@ -24,10 +24,9 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image, KeepTogether
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-from xhtml2pdf import pisa
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -490,23 +489,356 @@ def admin_required(f):
     return decorated_function
 
 def create_pdf_invoice(invoice, booking, customer, room):
-    def link_callback(uri, rel):
-        if uri.startswith(('http://', 'https://')):
-            return uri
-        if uri.startswith('/'):
-            path = os.path.join(basedir, uri.lstrip('/'))
-        else:
-            path = os.path.join(os.path.dirname(rel), uri)
-        if not os.path.isfile(path):
-            raise FileNotFoundError(f'Media URI not found: {path}')
-        return path
+    hotel_settings = {
+        'name': Settings.get('hotel_name', 'HOTEL SHRI GOVIND'),
+        'address': Settings.get('hotel_address', ''),
+        'phone': Settings.get('hotel_phone', ''),
+        'gst': Settings.get('hotel_gst', ''),
+        'owner': Settings.get('hotel_owner', ''),
+    }
 
-    html = render_template('invoice_pdf_standalone.html', invoice=invoice, booking=booking, room=room, customer=customer, now=datetime.now())
+    def fmt_currency(value):
+        try:
+            amount = Decimal(str(value or 0)).quantize(Decimal('0.01'))
+        except Exception:
+            amount = Decimal('0.00')
+        return f'Rs. {amount:,.2f}'
+
+    def try_image(path, width=None, height=None):
+        if os.path.isfile(path):
+            img = Image(path, width=width, height=height)
+            img.hAlign = 'LEFT'
+            return img
+        return None
+
+    logo_path = os.path.join(basedir, 'static', 'logo.png')
+    qr_path = os.path.join(basedir, 'static', 'real_scanner.jpeg')
+    logo_image = try_image(logo_path, width=100, height=100)
+    qr_image = try_image(qr_path, width=80, height=80)
+
+    styles = getSampleStyleSheet()
+    body_style = ParagraphStyle(
+        'Body',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=12,
+        leading=16,
+        spaceAfter=4,
+        textColor=colors.HexColor('#1a202c')
+    )
+    bold_style = ParagraphStyle(
+        'Bold',
+        parent=body_style,
+        fontName='Helvetica-Bold'
+    )
+    header_style = ParagraphStyle(
+        'Header',
+        parent=body_style,
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        leading=20,
+        spaceAfter=6
+    )
+    title_style = ParagraphStyle(
+        'Title',
+        parent=body_style,
+        fontName='Helvetica-Bold',
+        fontSize=22,
+        leading=26,
+        alignment=TA_RIGHT,
+        spaceAfter=10
+    )
+    meta_style = ParagraphStyle(
+        'Meta',
+        parent=body_style,
+        fontSize=11,
+        leading=15,
+        spaceAfter=4
+    )
+    section_title = ParagraphStyle(
+        'SectionTitle',
+        parent=body_style,
+        fontName='Helvetica-Bold',
+        fontSize=10,
+        leading=13,
+        textColor=colors.HexColor('#718096'),
+        spaceAfter=6
+    )
+    small_style = ParagraphStyle(
+        'Small',
+        parent=body_style,
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor('#718096')
+    )
+
     pdf_buffer = BytesIO()
-    pisa_status = pisa.CreatePDF(html, dest=pdf_buffer, link_callback=link_callback)
+    doc = SimpleDocTemplate(
+        pdf_buffer,
+        pagesize=A4,
+        leftMargin=12 * mm,
+        rightMargin=12 * mm,
+        topMargin=12 * mm,
+        bottomMargin=12 * mm,
+    )
+
+    invoice_number = invoice.invoice_number or ''
+    invoice_date = invoice.generated_at.strftime('%d %b %Y, %I:%M %p') if invoice.generated_at else ''
+
+    header_left_text = f"<b>{hotel_settings['name'].upper()}</b>"
+    if hotel_settings['address']:
+        header_left_text += f"<br/><b>{hotel_settings['address']}</b>"
+    if hotel_settings['phone']:
+        header_left_text += f"<br/><b>Phone: {hotel_settings['phone']}</b>"
+    if hotel_settings['gst']:
+        header_left_text += f" | <b>GST: {hotel_settings['gst']}</b>"
+    header_left_para = Paragraph(header_left_text, body_style)
+
+    left_table = Table(
+        [[logo_image if logo_image else '', header_left_para]],
+        colWidths=[100, 320]
+    )
+    left_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    right_cells = [[Paragraph('<b>INVOICE</b>', title_style)], [Paragraph(f'<b>{invoice_number}</b><br/><b>Date: {invoice_date}</b>', meta_style)]]
+    if qr_image:
+        right_cells.append([qr_image])
+    right_table = Table(right_cells, colWidths=[180])
+    right_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    header_table = Table(
+        [[left_table, right_table]],
+        colWidths=[360, 180],
+        hAlign='LEFT'
+    )
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    def detail_paragraph(text):
+        return Paragraph(text, body_style)
+
+    bill_to_text = f"<b>{booking.billing_name if booking.billing_name else customer.name}</b>"
+    if booking.company_gst:
+        bill_to_text += f"<br/><b>GST: {booking.company_gst}</b>"
+    if booking.company_address:
+        bill_to_text += f"<br/><b>{booking.company_address}</b>"
+    elif customer.address:
+        bill_to_text += f"<br/><b>{customer.address}</b>"
+    bill_to_block = KeepTogether([
+        Paragraph('<b>BILL TO</b>', section_title),
+        Paragraph(bill_to_text, body_style)
+    ])
+
+    guest_text = f"<b>{customer.name}</b><br/><b>{customer.phone}</b>"
+    if customer.address:
+        guest_text += f"<br/><b>{customer.address}</b>"
+    guest_block = KeepTogether([
+        Paragraph('<b>GUEST DETAILS</b>', section_title),
+        Paragraph(guest_text, body_style)
+    ])
+
+    booking_lines = [f"<b>Booking ID:</b> {booking.booking_id}", f"<b>Purpose of Visit:</b> {booking.purpose_of_visit or '-'}"]
+    if booking.booking_category == 'wedding':
+        package_name = {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, booking.wedding_package)
+        booking_lines.append(f"<b>Wedding Package:</b> {package_name}")
+    else:
+        room_info = f"{room.room_number if room else 'N/A'} ({room.room_type.title() if room else 'N/A'})"
+        booking_lines.append(f"<b>Room:</b> {room_info}")
+    booking_lines.extend([
+        f"<b>Persons:</b> {booking.number_of_persons}",
+        f"<b>Check-in:</b> {booking.actual_check_in.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_in else booking.check_in.strftime('%d %b %Y, %I:%M %p')}",
+        f"<b>Check-out:</b> {booking.actual_check_out.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_out else booking.check_out.strftime('%d %b %Y, %I:%M %p')}",
+        f"<b>Nights:</b> {booking.stay_duration}"
+    ])
+    booking_block = KeepTogether([
+        Paragraph('<b>BOOKING DETAILS</b>', section_title),
+        Paragraph('<br/>'.join(booking_lines), body_style)
+    ])
+
+    info_table = Table(
+        [[bill_to_block, guest_block, booking_block]],
+        colWidths=[176, 176, 176]
+    )
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    rows = [[
+        Paragraph('<b>Description</b>', bold_style),
+        Paragraph('<b>Qty</b>', bold_style),
+        Paragraph('<b>Rate</b>', bold_style),
+        Paragraph('<b>Amount</b>', bold_style)
+    ]]
+
+    if booking.booking_category == 'wedding':
+        package_name = {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, 'Wedding Package')
+        package_rate = Decimal('15000.00') if booking.wedding_package == 'all_9_ac' else Decimal('17000.00')
+        rows.append([
+            Paragraph(f'<b>Wedding Package ({package_name})</b>', body_style),
+            Paragraph(str(booking.stay_duration), body_style),
+            Paragraph(fmt_currency(package_rate), body_style),
+            Paragraph(fmt_currency(package_rate * booking.stay_duration), body_style)
+        ])
+    else:
+        room_rate = Decimal(str(room.price_per_night or 0))
+        rows.append([
+            Paragraph('<b>Room Charge</b>', body_style),
+            Paragraph(str(booking.stay_duration), body_style),
+            Paragraph(fmt_currency(room_rate), body_style),
+            Paragraph(fmt_currency(room_rate * booking.stay_duration), body_style)
+        ])
+
+    if booking.extra_person_charges and booking.extra_person_charges > 0:
+        rows.append([
+            Paragraph('<b>Extra Person Charges</b>', body_style),
+            Paragraph('', body_style),
+            Paragraph(fmt_currency(Decimal('500.00')), body_style),
+            Paragraph(fmt_currency(booking.extra_person_charges), body_style)
+        ])
+
+    for ec in booking.extra_charges_list:
+        charge_amount = Decimal(str(ec.amount or 0))
+        quantity = int(ec.quantity or 1)
+        rate = charge_amount / quantity if quantity else charge_amount
+        description = ec.description if ec.description else ec.charge_type.replace('_', ' ').title()
+        rows.append([
+            Paragraph(f'<b>{description}</b>', body_style),
+            Paragraph(str(quantity), body_style),
+            Paragraph(fmt_currency(rate), body_style),
+            Paragraph(fmt_currency(charge_amount), body_style)
+        ])
+
+    if booking.discount and booking.discount > 0:
+        rows.append([
+            Paragraph('<b>Discount</b>', body_style),
+            Paragraph('', body_style),
+            Paragraph('', body_style),
+            Paragraph(f'<font color="#38a169">- {fmt_currency(booking.discount)}</font>', body_style)
+        ])
+
+    item_table = Table(rows, colWidths=[260, 60, 90, 90])
+    item_table.setStyle(TableStyle([
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.white),
+        ('LINEBELOW', (0, 0), (-1, 0), 1, colors.black),
+        ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+        ('ALIGN', (2, 1), (-1, -1), 'RIGHT'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+    ]))
+
+    totals = []
+    if booking.gst_amount and booking.gst_amount > 0 and booking.gst_mode == 'include':
+        taxable = Decimal(str(booking.total_amount or 0)) - Decimal(str(booking.gst_amount or 0))
+        cgst = (Decimal(str(booking.gst_amount or 0)) / 2).quantize(Decimal('0.01'))
+        sgst = Decimal(str(booking.gst_amount or 0)) - cgst
+        totals.extend([
+            [Paragraph('<b>Grand Total (Incl. GST %s%%):</b>' % (Decimal(str(booking.gst_rate or 0)).quantize(Decimal('0.1'))), body_style), Paragraph(fmt_currency(booking.total_amount), body_style)],
+            [Paragraph('<b>Included Tax Breakdown</b>', small_style), Paragraph('', body_style)]
+        ])
+        totals.extend([
+            [Paragraph('Taxable Amount', body_style), Paragraph(fmt_currency(taxable), body_style)],
+            [Paragraph('CGST @%s%%' % (Decimal(str(booking.gst_rate or 0)) / 2).quantize(Decimal('0.1')), body_style), Paragraph(fmt_currency(cgst), body_style)],
+            [Paragraph('SGST @%s%%' % (Decimal(str(booking.gst_rate or 0)) / 2).quantize(Decimal('0.1')), body_style), Paragraph(fmt_currency(sgst), body_style)],
+            [Paragraph('Total GST', body_style), Paragraph(fmt_currency(booking.gst_amount), body_style)]
+        ])
+    else:
+        cgst = (Decimal(str(booking.gst_amount or 0)) / 2).quantize(Decimal('0.01'))
+        sgst = Decimal(str(booking.gst_amount or 0)) - cgst
+        totals.append([Paragraph('<b>Subtotal (before GST):</b>', body_style), Paragraph(fmt_currency(booking.subtotal), body_style)])
+        if booking.gst_amount and booking.gst_amount > 0:
+            totals.extend([
+                [Paragraph('<b>Tax Breakdown</b>', small_style), Paragraph('', body_style)],
+                [Paragraph('CGST @%s%%' % (Decimal(str(booking.gst_rate or 0)) / 2).quantize(Decimal('0.1')), body_style), Paragraph(fmt_currency(cgst), body_style)],
+                [Paragraph('SGST @%s%%' % (Decimal(str(booking.gst_rate or 0)) / 2).quantize(Decimal('0.1')), body_style), Paragraph(fmt_currency(sgst), body_style)],
+                [Paragraph('Total GST', body_style), Paragraph(fmt_currency(booking.gst_amount), body_style)]
+            ])
+        totals.append([Paragraph('<b>Grand Total (incl. GST %s%%):</b>' % (Decimal(str(booking.gst_rate or 0)).quantize(Decimal('0.1'))), body_style), Paragraph(fmt_currency(booking.total_amount), body_style)])
+
+    if booking.advance_amount and booking.advance_amount > 0 and booking.pending_amount and booking.pending_amount > 0:
+        totals.append([Paragraph('<b>Advance Paid:</b>', body_style), Paragraph('<font color="#38a169">- %s</font>' % fmt_currency(booking.advance_amount), body_style)])
+    if booking.pending_amount and booking.pending_amount > 0:
+        totals.append([Paragraph('<font color="#e53e3e"><b>Balance Due:</b></font>', body_style), Paragraph('<font color="#e53e3e"><b>%s</b></font>' % fmt_currency(booking.pending_amount), body_style)])
+    elif booking.pending_amount and booking.pending_amount < 0:
+        totals.append([Paragraph('<font color="#38a169"><b>Excess Paid:</b></font>', body_style), Paragraph('<font color="#38a169"><b>%s</b></font>' % fmt_currency(booking.advance_amount - booking.total_amount), body_style)])
+    else:
+        totals.append([Paragraph('<font color="#38a169"><b>Paid:</b></font>', body_style), Paragraph('<font color="#38a169"><b>PAID</b></font>', body_style)])
+
+    totals_table = Table(totals, colWidths=[170, 120], hAlign='RIGHT')
+    totals_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('LINEABOVE', (0, len(totals) - 1), (-1, len(totals) - 1), 1, colors.HexColor('#1a202c')),
+    ]))
+
+    footer_text = [
+        Paragraph('<font color="#38a169"><b>Thank you for staying with us!</b></font>', body_style),
+        Paragraph('<b>Terms: Check-out time is 12:00 PM. Late checkout charges apply after that.</b>', small_style)
+    ]
+    signature_line = Table([['']], colWidths=[200], style=[('LINEBELOW', (0, 0), (-1, -1), 1, colors.HexColor('#a0aec0')), ('BOTTOMPADDING', (0, 0), (-1, -1), 0)])
+
+    guest_signature = KeepTogether([
+        Paragraph('<b>Guest Signature</b>', small_style),
+        Spacer(1, 18),
+        signature_line,
+        Spacer(1, 6),
+        Paragraph(f'<b>{customer.name}</b>', small_style)
+    ])
+    hotel_signature = KeepTogether([
+        Paragraph(f'<b>For {hotel_settings["name"].upper()}</b>', small_style),
+        Spacer(1, 18),
+        signature_line,
+        Spacer(1, 6),
+        Paragraph('<b>Authorised Signatory</b><br/><font color="#718096">%s</font>' % hotel_settings['owner'], small_style)
+    ])
+    signature_table = Table([[guest_signature, hotel_signature]], colWidths=[270, 270])
+    signature_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+
+    story = [
+        header_table,
+        Spacer(1, 20),
+        info_table,
+        Spacer(1, 20),
+        item_table,
+        Spacer(1, 20),
+        totals_table,
+        Spacer(1, 20),
+        Paragraph('', body_style),
+        Paragraph('', body_style),
+        footer_text[0],
+        Spacer(1, 4),
+        footer_text[1],
+        Spacer(1, 30),
+        signature_table,
+    ]
+
+    doc.build(story)
     pdf_buffer.seek(0)
-    if pisa_status.err:
-        raise Exception('PDF generation failed')
     return pdf_buffer
 
 # ==================== ROUTES ====================

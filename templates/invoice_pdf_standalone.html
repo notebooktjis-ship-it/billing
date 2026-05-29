@@ -11,10 +11,10 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: Helvetica, Arial, sans-serif;
             color: #1a202c;
             font-size: 12px;
-            line-height: 1.5;
+            line-height: 1.4;
         }
         .invoice-box {
             max-width: 800px;
@@ -22,19 +22,23 @@
             padding: 20px;
         }
         .invoice-header {
-            display: flex;
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 15px;
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 2px solid #1a202c;
         }
+        .invoice-header-table,
+        .invoice-info-table,
+        .sign-section-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .invoice-header-table td,
+        .invoice-info-table td,
+        .sign-section-table td {
+            vertical-align: top;
+        }
         .invoice-logo {
-            display: flex;
-            align-items: center;
-            gap: 15px;
+            display: inline-block;
         }
         .invoice-logo img { max-height: 100px; }
         .invoice-header h2 { font-size: 16px; margin-bottom: 3px; }
@@ -42,12 +46,7 @@
         .invoice-title { text-align: right; }
         .invoice-title h1 { font-size: 22px; color: #1a202c; margin-bottom: 4px; }
         .invoice-meta p { margin: 2px 0; }
-        .invoice-info {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+        .invoice-info-table td { padding-right: 15px; }
         .invoice-section h4 {
             font-size: 10px;
             text-transform: uppercase;
@@ -74,11 +73,11 @@
         .invoice-totals { margin-left: auto; width: 300px; margin-top: 20px; }
         .invoice-totals td { padding: 5px 0; font-size: 11px; }
         .invoice-totals .total-row { font-size: 14px; font-weight: 700; border-top: 2px solid #1a202c; }
-        .text-mono { font-family: 'Courier New', Courier, monospace; }
+        .text-mono { font-family: Courier, monospace; }
         .invoice-footer { text-align: center; padding-top: 15px; margin-top: 20px; border-top: 1px solid #e2e8f0; color: #718096; font-size: 10px; }
-        .sign-section { display: flex; justify-content: space-between; margin-top: 40px; padding-top: 20px; }
+        .sign-section-table td { width: 50%; padding-top: 20px; }
         .sign-box { text-align: center; }
-        .sign-box .line { height: 60px; width: 200px; border-bottom: 1px solid #a0aec0; }
+        .sign-box .line { height: 60px; width: 200px; border-bottom: 1px solid #a0aec0; margin: 0 auto; }
         .sign-box .label { font-size: 12px; color: #718096; margin-bottom: 5px; }
         .badge { display: inline-block; background: #f7fafc; padding: 5px 12px; border-radius: 15px; margin-right: 8px; font-size: 13px; }
         .green { color: #38a169; }
@@ -89,55 +88,77 @@
 <body>
 <div class="invoice-box">
     <div class="invoice-header">
-        <div class="invoice-logo">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Hotel Logo" style="max-height: 100px;">
-            <div>
-                <h2><strong>{{ hotel.name|upper }}</strong></h2>
-                {% if hotel.address %}<p><strong>{{ hotel.address }}</strong></p>{% endif %}
-                {% if hotel.phone %}<p><strong>Phone: {{ hotel.phone }}</strong>{% endif %}{% if hotel.gst %} | <strong>GST: {{ hotel.gst }}</strong>{% endif %}</p>
-            </div>
-        </div>
-        <div class="invoice-title" style="display: flex; align-items: flex-start; gap: 20px;">
-            <div>
-                <h1><strong>INVOICE</strong></h1>
-                <div class="invoice-meta">
-                    <p><strong>{{ invoice.invoice_number }}</strong></p>
-                    <p><strong>Date: {{ invoice.generated_at.strftime('%d %b %Y, %I:%M %p') }}</strong></p>
-                </div>
-            </div>
-            <img src="{{ url_for('static', filename='real_scanner.jpeg') }}" alt="QR Code" style="max-height: 80px; max-width: 80px;">
-        </div>
+        <table class="invoice-header-table">
+            <tr>
+                <td style="padding-right: 20px;">
+                    <table style="border-collapse: collapse;">
+                        <tr>
+                            <td style="vertical-align: top; padding-right: 12px;"><img src="{{ url_for('static', filename='logo.png') }}" alt="Hotel Logo" style="max-height: 100px;"></td>
+                            <td style="vertical-align: top;">
+                                <div class="invoice-logo">
+                                    <h2><strong>{{ hotel.name|upper }}</strong></h2>
+                                    {% if hotel.address %}<p><strong>{{ hotel.address }}</strong></p>{% endif %}
+                                    {% if hotel.phone %}<p><strong>Phone: {{ hotel.phone }}</strong>{% endif %}{% if hotel.gst %} | <strong>GST: {{ hotel.gst }}</strong>{% endif %}</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+                <td style="width: 230px; text-align: right;">
+                    <div class="invoice-title">
+                        <div>
+                            <h1><strong>INVOICE</strong></h1>
+                            <div class="invoice-meta">
+                                <p><strong>{{ invoice.invoice_number }}</strong></p>
+                                <p><strong>Date: {{ invoice.generated_at.strftime('%d %b %Y, %I:%M %p') }}</strong></p>
+                            </div>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <img src="{{ url_for('static', filename='real_scanner.jpeg') }}" alt="QR Code" style="max-height: 80px; max-width: 80px;">
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
-    <div class="invoice-info">
-        <div class="invoice-section">
-            <h4><strong>Bill To</strong></h4>
-            <p><strong>{{ booking.billing_name if booking.billing_name else customer.name }}</strong></p>
-            {% if booking.company_gst %}<p><strong>GST: {{ booking.company_gst }}</strong></p>{% endif %}
-            {% if booking.company_address %}<p><strong>{{ booking.company_address }}</strong></p>
-            {% elif customer.address %}<p><strong>{{ customer.address }}</strong></p>{% endif %}
-        </div>
-        <div class="invoice-section">
-            <h4><strong>Guest Details</strong></h4>
-            <p><strong>{{ customer.name }}</strong></p>
-            <p><strong>{{ customer.phone }}</strong></p>
-            {% if customer.address %}<p><strong>{{ customer.address }}</strong></p>{% endif %}
-        </div>
-        <div class="invoice-section">
-            <h4><strong>Booking Details</strong></h4>
-            <p><strong>Booking ID:</strong> {{ booking.booking_id }}</p>
-            <p><strong>Purpose of Visit:</strong> {{ booking.purpose_of_visit or '-' }}</p>
-            {% if booking.booking_category == 'wedding' %}
-            <p><strong>Wedding Package:</strong> {{ {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, booking.wedding_package) }}</p>
-            {% else %}
-            <p><strong>Room:</strong> {{ room.room_number if room else 'N/A' }} ({{ room.room_type|title if room else 'N/A' }})</p>
-            {% endif %}
-            <p><strong>Persons:</strong> {{ booking.number_of_persons }}</p>
-            <p><strong>Check-in:</strong> {{ booking.actual_check_in.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_in else booking.check_in.strftime('%d %b %Y, %I:%M %p') }}</p>
-            <p><strong>Check-out:</strong> {{ booking.actual_check_out.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_out else booking.check_out.strftime('%d %b %Y, %I:%M %p') }}</p>
-            <p><strong>Nights:</strong> {{ booking.stay_duration }}</p>
-        </div>
-    </div>
+    <table class="invoice-info-table">
+        <tr>
+            <td style="width: 33%;">
+                <div class="invoice-section">
+                    <h4><strong>Bill To</strong></h4>
+                    <p><strong>{{ booking.billing_name if booking.billing_name else customer.name }}</strong></p>
+                    {% if booking.company_gst %}<p><strong>GST: {{ booking.company_gst }}</strong></p>{% endif %}
+                    {% if booking.company_address %}<p><strong>{{ booking.company_address }}</strong></p>
+                    {% elif customer.address %}<p><strong>{{ customer.address }}</strong></p>{% endif %}
+                </div>
+            </td>
+            <td style="width: 33%;">
+                <div class="invoice-section">
+                    <h4><strong>Guest Details</strong></h4>
+                    <p><strong>{{ customer.name }}</strong></p>
+                    <p><strong>{{ customer.phone }}</strong></p>
+                    {% if customer.address %}<p><strong>{{ customer.address }}</strong></p>{% endif %}
+                </div>
+            </td>
+            <td style="width: 34%;">
+                <div class="invoice-section">
+                    <h4><strong>Booking Details</strong></h4>
+                    <p><strong>Booking ID:</strong> {{ booking.booking_id }}</p>
+                    <p><strong>Purpose of Visit:</strong> {{ booking.purpose_of_visit or '-' }}</p>
+                    {% if booking.booking_category == 'wedding' %}
+                    <p><strong>Wedding Package:</strong> {{ {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, booking.wedding_package) }}</p>
+                    {% else %}
+                    <p><strong>Room:</strong> {{ room.room_number if room else 'N/A' }} ({{ room.room_type|title if room else 'N/A' }})</p>
+                    {% endif %}
+                    <p><strong>Persons:</strong> {{ booking.number_of_persons }}</p>
+                    <p><strong>Check-in:</strong> {{ booking.actual_check_in.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_in else booking.check_in.strftime('%d %b %Y, %I:%M %p') }}</p>
+                    <p><strong>Check-out:</strong> {{ booking.actual_check_out.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_out else booking.check_out.strftime('%d %b %Y, %I:%M %p') }}</p>
+                    <p><strong>Nights:</strong> {{ booking.stay_duration }}</p>
+                </div>
+            </td>
+        </tr>
+    </table>
 
     {% if booking.accompanying_persons %}
     <div style="margin-bottom: 20px;">
