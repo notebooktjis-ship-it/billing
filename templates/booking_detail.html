@@ -166,17 +166,10 @@
             </div>
             <div class="card-body">
                 <table style="width: 100%;">
-                    {% if booking.gst_mode == 'include' %}
-                    <tr>
-                        <td style="padding: 8px 0;">Room Charge ({{ booking.stay_duration }} nights)</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.subtotal) }}</td>
-                    </tr>
-                    {% else %}
                     <tr>
                         <td style="padding: 8px 0;">Room Charge ({{ booking.stay_duration }} nights)</td>
                         <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.room_charge) }}</td>
                     </tr>
-                    {% endif %}
                     {% if booking.extra_person_charges and booking.extra_person_charges > 0 %}
                     <tr style="color: var(--warning);">
                         <td style="padding: 8px 0;">Extra Person Charges</td>
@@ -195,35 +188,58 @@
                         <td style="text-align: right; color: var(--success);" class="text-mono">- Rs. {{ "%.2f"|format(booking.discount) }}</td>
                     </tr>
                     {% endif %}
+                    {% if booking.gst_amount and booking.gst_amount > 0 and booking.gst_mode == 'include' %}
+                    {% set taxable = booking.total_amount|float - booking.gst_amount|float %}
+                    {% set cgst = (booking.gst_amount|float / 2)|round(2) %}
+                    {% set sgst = booking.gst_amount|float - cgst %}
                     <tr style="border-top: 2px solid var(--gray-200);">
-                        <td style="padding: 8px 0; font-weight: 600;">Subtotal</td>
+                        <td style="padding: 10px 0; font-weight: 700; font-size: 15px;">Grand Total (Incl. GST {{ "%.1f"|format(booking.gst_rate|float) }}%)</td>
+                        <td style="text-align: right; font-weight: 700; font-size: 15px; color: var(--primary);" class="text-mono">Rs. {{ "%.2f"|format(booking.total_amount) }}</td>
+                    </tr>
+                    <tr><td colspan="2" style="padding: 8px 0 3px 0; font-size: 11px; color: var(--gray-500);"><strong>Included Tax Breakdown</strong></td></tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">Taxable Amount</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(taxable) }}</td>
+                    </tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">CGST @{{ "%.1f"|format(booking.gst_rate|float / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(cgst) }}</td>
+                    </tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">SGST @{{ "%.1f"|format(booking.gst_rate|float / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(sgst) }}</td>
+                    </tr>
+                    <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">Total GST</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(booking.gst_amount) }}</td>
+                    </tr>
+                    {% else %}
+                    {% set cgst_e = (booking.gst_amount|float / 2)|round(2) if booking.gst_amount else 0 %}
+                    {% set sgst_e = booking.gst_amount|float - cgst_e if booking.gst_amount else 0 %}
+                    <tr>
+                        <td style="padding: 8px 0; font-weight: 600;">Subtotal (before GST)</td>
                         <td style="text-align: right; font-weight: 600;" class="text-mono">Rs. {{ "%.2f"|format(booking.subtotal) }}</td>
                     </tr>
                     {% if booking.gst_amount and booking.gst_amount > 0 %}
-                    {% if booking.gst_mode == 'include' %}
-                    <tr style="color: var(--gray-500); font-size: 12px;">
-                        <td style="padding: 8px 0;">(Incl.) CGST</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.gst_amount|float / 2) }}</td>
+                    <tr><td colspan="2" style="padding: 6px 0 2px 0; font-size: 11px; color: var(--gray-500);"><strong>Tax Breakdown</strong></td></tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">CGST @{{ "%.1f"|format(booking.gst_rate|float / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(cgst_e) }}</td>
                     </tr>
-                    <tr style="color: var(--gray-500); font-size: 12px;">
-                        <td style="padding: 8px 0;">(Incl.) SGST</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.gst_amount|float / 2) }}</td>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">SGST @{{ "%.1f"|format(booking.gst_rate|float / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(sgst_e) }}</td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td style="padding: 8px 0;">CGST ({{ "%.1f"|format(booking.gst_rate|float / 2) }}%)</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.gst_amount|float / 2) }}</td>
+                    <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">Total GST</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(booking.gst_amount) }}</td>
                     </tr>
-                    <tr>
-                        <td style="padding: 8px 0;">SGST ({{ "%.1f"|format(booking.gst_rate|float / 2) }}%)</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.2f"|format(booking.gst_amount|float / 2) }}</td>
-                    </tr>
-                    {% endif %}
                     {% endif %}
                     <tr style="border-top: 2px solid var(--primary); background: var(--gray-50);">
-                        <td style="padding: 12px 8px; font-weight: 700; font-size: 16px;">Total Amount</td>
+                        <td style="padding: 12px 8px; font-weight: 700; font-size: 16px;">Grand Total (incl. GST {{ "%.1f"|format(booking.gst_rate|float) }}%)</td>
                         <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);" class="text-mono">Rs. {{ "%.2f"|format(booking.total_amount) }}</td>
                     </tr>
+                    {% endif %}
                 </table>
                 
                 {% if booking.status == 'checked_in' %}

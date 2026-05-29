@@ -578,41 +578,59 @@ document.addEventListener('DOMContentLoaded', function() {
                         </tr>`;
             }
             
+            var cgstVal = Math.round(cgst);
+            var sgstVal = Math.round(gstAmount) - cgstVal;
+            var totalGst = Math.round(gstAmount);
             if (gstMode === 'exclude') {
+                var subtotal = Math.round(totalBase + extraPersonCharge);
                 html += `
                         <tr style="border-top: 1px dashed var(--gray-300);">
-                            <td style="padding-top: 8px;">Subtotal</td>
-                            <td style="text-align: right; padding-top: 8px;">Rs. ${Math.round(totalBase + extraPersonCharge).toLocaleString()}</td>
+                            <td style="padding: 8px 0; font-weight: 600;">Subtotal (before GST)</td>
+                            <td style="text-align: right; font-weight: 600;">Rs. ${subtotal.toLocaleString()}</td>
                         </tr>
-                        <tr>
-                            <td>CGST (${gstRate/2}%)</td>
-                            <td style="text-align: right;">Rs. ${Math.round(cgst).toLocaleString()}</td>
+                        <tr><td colspan="2" style="padding: 6px 0 2px 0; font-size: 11px; color: var(--gray-500);"><strong>Tax Breakdown</strong></td></tr>
+                        <tr style="font-size: 12px;">
+                            <td style="padding-left: 10px;">CGST @${gstRate/2}%</td>
+                            <td style="text-align: right;">${cgstVal.toLocaleString()}</td>
                         </tr>
-                        <tr>
-                            <td>SGST (${gstRate/2}%)</td>
-                            <td style="text-align: right;">Rs. ${Math.round(sgst).toLocaleString()}</td>
+                        <tr style="font-size: 12px;">
+                            <td style="padding-left: 10px;">SGST @${gstRate/2}%</td>
+                            <td style="text-align: right;">${sgstVal.toLocaleString()}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                            <td style="padding-left: 10px;">Total GST</td>
+                            <td style="text-align: right;">${totalGst.toLocaleString()}</td>
+                        </tr>
+                        <tr style="border-top: 2px solid var(--primary);">
+                            <td style="font-weight: 700; padding-top: 10px;">Grand Total (incl. GST ${gstRate}%)</td>
+                            <td style="text-align: right; font-weight: 700; padding-top: 10px; color: var(--primary);">Rs. ${Math.round(totalAmount).toLocaleString()}</td>
                         </tr>`;
             } else {
                 html += `
-                        <tr style="color: var(--gray-500); font-size: 12px;">
-                            <td>(Incl.) CGST (${gstRate/2}%)</td>
-                            <td style="text-align: right;">Rs. ${Math.round(cgst).toLocaleString()}</td>
-                        </tr>
-                        <tr style="color: var(--gray-500); font-size: 12px;">
-                            <td>(Incl.) SGST (${gstRate/2}%)</td>
-                            <td style="text-align: right;">Rs. ${Math.round(sgst).toLocaleString()}</td>
-                        </tr>
                         <tr style="border-top: 1px dashed var(--gray-300);">
-                            <td style="padding-top: 8px; color: var(--gray-600);">Base Price</td>
-                            <td style="text-align: right; padding-top: 8px;">Rs. ${Math.round(base).toLocaleString()}</td>
+                            <td style="padding-top: 8px; font-weight: 700; font-size: 15px;">Grand Total (Incl. GST ${gstRate}%)</td>
+                            <td style="text-align: right; padding-top: 8px; font-weight: 700; font-size: 15px; color: var(--primary);">Rs. ${Math.round(totalAmount).toLocaleString()}</td>
+                        </tr>
+                        <tr><td colspan="2" style="padding: 8px 0 3px 0; font-size: 11px; color: var(--gray-500);"><strong>Included Tax Breakdown</strong></td></tr>
+                        <tr style="font-size: 12px;">
+                            <td style="padding-left: 10px;">Taxable Amount</td>
+                            <td style="text-align: right;">Rs. ${Math.round(base).toLocaleString()}</td>
+                        </tr>
+                        <tr style="font-size: 12px;">
+                            <td style="padding-left: 10px;">CGST @${gstRate/2}%</td>
+                            <td style="text-align: right;">${cgstVal.toLocaleString()}</td>
+                        </tr>
+                        <tr style="font-size: 12px;">
+                            <td style="padding-left: 10px;">SGST @${gstRate/2}%</td>
+                            <td style="text-align: right;">${sgstVal.toLocaleString()}</td>
+                        </tr>
+                        <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                            <td style="padding-left: 10px;">Total GST</td>
+                            <td style="text-align: right;">${totalGst.toLocaleString()}</td>
                         </tr>`;
             }
             
             html += `
-                        <tr style="border-top: 2px solid var(--primary);">
-                            <td style="font-weight: 700; padding-top: 10px;">Total Amount</td>
-                            <td style="text-align: right; font-weight: 700; padding-top: 10px; color: var(--primary);">Rs. ${Math.round(totalAmount).toLocaleString()}</td>
-                        </tr>
                     </table>
                 </div>
             `;

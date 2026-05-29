@@ -179,17 +179,10 @@
             </div>
             <div class="card-body">
                 <table style="width: 100%; font-size: 14px;">
-                    {% if bill_data.gst_mode == 'include' %}
-                    <tr>
-                        <td style="padding: 8px 0; color: var(--gray-600);">Room Charge ({{ booking.stay_duration }} nights)</td>
-                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.subtotal) }}</td>
-                    </tr>
-                    {% else %}
                     <tr>
                         <td style="padding: 8px 0; color: var(--gray-600);">Room Charge ({{ booking.stay_duration }} nights)</td>
                         <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.base_room_charge) }}</td>
                     </tr>
-                    {% endif %}
                     {% if bill_data.extra_person_charges > 0 %}
                     <tr style="color: var(--warning);">
                         <td style="padding: 8px 0;">Extra Person Charges</td>
@@ -208,36 +201,56 @@
                         <td style="text-align: right; color: var(--success);" class="text-mono">-Rs. {{ "%.3f"|format(booking.discount) }}</td>
                     </tr>
                     {% endif %}
+                    {% if bill_data.gst_mode == 'include' and bill_data.gst_amount > 0 %}
+                    {% set cgst = (bill_data.gst_amount / 2)|round(2) %}
+                    {% set sgst = bill_data.gst_amount - cgst %}
                     <tr style="border-top: 1px dashed var(--gray-300);">
-                        <td style="padding: 8px 0; color: var(--gray-600); font-weight: 600;">Base Price</td>
+                        <td style="padding: 8px 0;">Taxable Amount</td>
+                        <td style="text-align: right;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.base_price) }}</td>
+                    </tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0;">CGST @{{ "%.1f"|format(bill_data.gst_rate / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(cgst) }}</td>
+                    </tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0;">SGST @{{ "%.1f"|format(bill_data.gst_rate / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(sgst) }}</td>
+                    </tr>
+                    <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                        <td style="padding: 4px 0;">Total GST</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(bill_data.gst_amount) }}</td>
+                    </tr>
+                    <tr style="border-top: 2px solid var(--primary);">
+                        <td style="padding: 12px 0; font-weight: 700; font-size: 16px;">Grand Total (Incl. GST {{ "%.1f"|format(bill_data.gst_rate) }}%)</td>
+                        <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);" class="text-mono">Rs. {{ "%.3f"|format(bill_data.total_amount) }}</td>
+                    </tr>
+                    {% else %}
+                    {% set cgst_e = (bill_data.gst_amount|float / 2)|round(2) if bill_data.gst_amount else 0 %}
+                    {% set sgst_e = bill_data.gst_amount|float - cgst_e if bill_data.gst_amount else 0 %}
+                    <tr style="border-top: 1px dashed var(--gray-300);">
+                        <td style="padding: 8px 0; color: var(--gray-600); font-weight: 600;">Subtotal (before GST)</td>
                         <td style="text-align: right; font-weight: 600;" class="text-mono">Rs. {{ "%.3f"|format(bill_data.base_price) }}</td>
                     </tr>
                     {% if bill_data.gst_amount > 0 %}
-                    <tr>
-                        <td style="padding: 8px 0;">
-                            {% if bill_data.gst_mode == 'include' %}
-                            <span style="color: var(--gray-500); font-size: 12px;">(Incl.) CGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%:</span>
-                            {% else %}
-                            <span style="color: var(--gray-600);">CGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%</span>
-                            {% endif %}
-                        </td>
-                        <td style="text-align: right; font-size: 12px;">Rs. {{ "%.3f"|format(bill_data.gst_amount / 2) }}</td>
+                    <tr><td colspan="2" style="padding: 6px 0 2px 0; font-size: 11px; color: var(--gray-500);"><strong>Tax Breakdown</strong></td></tr>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">CGST @{{ "%.1f"|format(bill_data.gst_rate / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(cgst_e) }}</td>
                     </tr>
-                    <tr>
-                        <td style="padding: 8px 0;">
-                            {% if bill_data.gst_mode == 'include' %}
-                            <span style="color: var(--gray-500); font-size: 12px;">(Incl.) SGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%:</span>
-                            {% else %}
-                            <span style="color: var(--gray-600);">SGST {{ "%.1f"|format(bill_data.gst_rate / 2) }}%</span>
-                            {% endif %}
-                        </td>
-                        <td style="text-align: right; font-size: 12px;">Rs. {{ "%.3f"|format(bill_data.gst_amount / 2) }}</td>
+                    <tr style="font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">SGST @{{ "%.1f"|format(bill_data.gst_rate / 2) }}%</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(sgst_e) }}</td>
+                    </tr>
+                    <tr style="border-top: 1px solid var(--gray-300); font-size: 12px;">
+                        <td style="padding: 4px 0 4px 10px;">Total GST</td>
+                        <td style="text-align: right;" class="text-mono">{{ "%.2f"|format(bill_data.gst_amount) }}</td>
                     </tr>
                     {% endif %}
                     <tr style="border-top: 2px solid var(--primary);">
-                        <td style="padding: 12px 0; font-weight: 700; font-size: 16px;">Total Amount</td>
+                        <td style="padding: 12px 0; font-weight: 700; font-size: 16px;">Grand Total (incl. GST {{ "%.1f"|format(bill_data.gst_rate) }}%)</td>
                         <td style="text-align: right; font-weight: 700; font-size: 16px; color: var(--primary);" class="text-mono">Rs. {{ "%.3f"|format(bill_data.total_amount) }}</td>
                     </tr>
+                    {% endif %}
                     {% if booking.advance_amount > 0 %}
                     <tr>
                         <td style="padding: 8px 0; color: var(--success);">Advance Paid</td>

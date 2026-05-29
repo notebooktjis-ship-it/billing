@@ -27,6 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+import weasyprint
 import os
 
 app = Flask(__name__)
@@ -416,10 +417,10 @@ def calculate_bill(booking):
                 base_price = subtotal
                 display_subtotal = subtotal
             else:
-                display_subtotal = (subtotal * 100) / (100 + gst_rate)
-                gst_amount = subtotal - display_subtotal
+                base_price = (subtotal * 100) / (100 + gst_rate)
+                gst_amount = subtotal - base_price
                 total = subtotal
-                base_price = display_subtotal
+                display_subtotal = subtotal
         else:
             total = Decimal('0')
             base_price = Decimal('0')
@@ -454,18 +455,6 @@ def calculate_bill(booking):
             'stay_duration': 1,
             'error': str(e)
         }
-    
-    return {
-        'base_room_charge': float(base_room_charge),
-        'extra_person_charges': float(extra_person_charges),
-        'room_charge': float(room_charge),
-        'extra_charges': float(extra_total),
-        'subtotal': float(subtotal),
-        'gst_amount': float(gst_amount),
-        'gst_mode': booking.gst_mode,
-        'total_amount': float(total),
-        'pending_amount': float(pending)
-    }
 
 def calculate_extra_person_charge(room_type, total_persons, stay_duration):
     extra_persons = 0
@@ -693,17 +682,28 @@ def create_pdf_invoice(invoice, booking, customer, room):
     if float(booking.discount or 0) > 0:
         charges_data.append([P('Discount', fs=10), P('', fs=10), P('', fs=10), P(f'Rs. {float(booking.discount):,.2f}', fs=10, a=TA_RIGHT, fn='Courier', c=SUCCESS)])
     
-    charges_data.append([P('', fs=10), P('', fs=10), P('<b>Subtotal:</b>', fs=10, a=TA_RIGHT), P(f'<b>Rs. {float(booking.subtotal):,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')])
-    
-    if float(booking.gst_amount or 0) > 0:
-        if booking.gst_mode == 'include':
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'(Incl.) CGST ({gst_percent:.1f}%):', fs=9, c=GRAY, a=TA_RIGHT), P(f'Rs. {cgst_amount:,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'(Incl.) SGST ({gst_percent:.1f}%):', fs=9, c=GRAY, a=TA_RIGHT), P(f'Rs. {sgst_amount:,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
-        else:
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>CGST ({gst_percent:.1f}%):</b>', fs=10, a=TA_RIGHT), P(f'<b>Rs. {cgst_amount:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')])
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>SGST ({gst_percent:.1f}%):</b>', fs=10, a=TA_RIGHT), P(f'<b>Rs. {sgst_amount:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')])
-    
-    charges_data.append([P('', fs=10), P('', fs=10), P('<b>Total:</b>', fs=11, c=PRIMARY, a=TA_RIGHT), P(f'<b>Rs. {float(booking.total_amount):,.2f}</b>', fs=11, c=PRIMARY, a=TA_RIGHT, fn='Courier')])
+    if float(booking.gst_amount or 0) > 0 and booking.gst_mode == 'include':
+        gst_rate = float(booking.gst_rate or 5)
+        taxable = float(booking.total_amount) - float(booking.gst_amount)
+        cgst = round(float(booking.gst_amount) / 2, 2)
+        sgst = float(booking.gst_amount) - cgst
+        charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>Grand Total (Incl. GST {gst_rate:.1f}%):</b>', fs=11, c=PRIMARY, a=TA_RIGHT), P(f'<b>Rs. {float(booking.total_amount):,.2f}</b>', fs=11, c=PRIMARY, a=TA_RIGHT, fn='Courier')])
+        charges_data.append([P('<i>Included Tax Breakdown</i>', fs=8, c=GRAY), P('', fs=10), P('', fs=10), P('', fs=10)])
+        charges_data.append([P('Taxable Amount', fs=9), P('', fs=10), P('', fs=10), P(f'Rs. {taxable:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
+        charges_data.append([P(f'CGST @{gst_rate/2:.1f}%', fs=9), P('', fs=10), P('', fs=10), P(f'{cgst:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
+        charges_data.append([P(f'SGST @{gst_rate/2:.1f}%', fs=9), P('', fs=10), P('', fs=10), P(f'{sgst:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
+        charges_data.append([P('Total GST', fs=9, c=GRAY), P('', fs=10), P('', fs=10), P(f'{float(booking.gst_amount):,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
+    else:
+        gst_amount = float(booking.gst_amount or 0)
+        cgst_e = round(gst_amount / 2, 2) if gst_amount > 0 else 0
+        sgst_e = gst_amount - cgst_e if gst_amount > 0 else 0
+        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Subtotal (before GST):</b>', fs=10, a=TA_RIGHT), P(f'<b>Rs. {float(booking.subtotal):,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')])
+        if gst_amount > 0:
+            charges_data.append([P('', fs=10), P('', fs=10), P('<i>Tax Breakdown</i>', fs=8, c=GRAY, a=TA_RIGHT), P('', fs=10)])
+            charges_data.append([P('', fs=10), P('', fs=10), P(f'CGST @{gst_percent:.1f}%', fs=9, a=TA_RIGHT), P(f'{cgst_e:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
+            charges_data.append([P('', fs=10), P('', fs=10), P(f'SGST @{gst_percent:.1f}%', fs=9, a=TA_RIGHT), P(f'{sgst_e:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
+            charges_data.append([P('', fs=10), P('', fs=10), P('Total GST', fs=9, c=GRAY, a=TA_RIGHT), P(f'{gst_amount:,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
+        charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>Grand Total (incl. GST {float(booking.gst_rate or 5):.1f}%):</b>', fs=11, c=PRIMARY, a=TA_RIGHT), P(f'<b>Rs. {float(booking.total_amount):,.2f}</b>', fs=11, c=PRIMARY, a=TA_RIGHT, fn='Courier')])
     
     pending = float(booking.pending_amount or 0)
     advance = float(booking.advance_amount or 0)
@@ -1325,9 +1325,9 @@ def new_booking():
             booking.gst_amount = (subtotal * gst_rate_decimal) / 100
             booking.total_amount = subtotal + booking.gst_amount
         else:
-            subtotal = (total_room_charge * 100) / (100 + gst_rate_decimal)
-            booking.subtotal = subtotal
-            booking.gst_amount = total_room_charge - subtotal
+            base_price = (total_room_charge * 100) / (100 + gst_rate_decimal)
+            booking.subtotal = total_room_charge
+            booking.gst_amount = total_room_charge - base_price
             booking.total_amount = total_room_charge
         
         booking.pending_amount = booking.total_amount - booking.advance_amount
@@ -1610,7 +1610,6 @@ def edit_booking(booking_id):
                 booking.total_amount = subtotal + booking.gst_amount
             else:
                 base_price = (subtotal * 100) / (100 + Decimal(str(gst_rate)))
-                booking.subtotal = Decimal(str(base_price))
                 booking.gst_amount = subtotal - base_price
                 booking.total_amount = subtotal
             
@@ -1688,7 +1687,13 @@ def download_invoice(invoice_id):
     room = db.session.get(Room, booking.room_id) if booking.room_id else None
     customer = db.session.get(Customer, booking.customer_id)
     
-    pdf_buffer = create_pdf_invoice(invoice, booking, customer, room)
+    html = render_template('invoice_pdf_standalone.html', invoice=invoice,
+                           booking=booking, room=room, customer=customer,
+                           now=datetime.now())
+    
+    pdf_buffer = BytesIO()
+    weasyprint.HTML(string=html).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
     
     return send_file(
         pdf_buffer,
