@@ -28,11 +28,6 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
-# Import fpdf for PDF generation
-from fpdf import FPDF
-
-import os
-
 app = Flask(__name__)
 app.config.from_object('config.Config')
 app.config['SESSION_TYPE'] = 'filesystem'
@@ -548,6 +543,16 @@ def create_pdf_invoice(invoice, booking, customer, room):
         left_block.append(item)
         left_block.append(Spacer(1, 2))
     
+    logo_image = None
+    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo.png')
+    if not os.path.exists(logo_path):
+        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo.jpeg')
+    if os.path.exists(logo_path):
+        try:
+            logo_image = Image(logo_path, width=120, height=80)
+        except:
+            logo_image = None
+
     qr_image = None
     qr_path = os.path.join(os.path.dirname(__file__), 'static', 'hotel_qr.png')
     if os.path.exists(qr_path):
@@ -571,6 +576,8 @@ def create_pdf_invoice(invoice, booking, customer, room):
         right_block.append(qr_image)
     
     header_cell_left = []
+    if logo_image:
+        header_cell_left.append(logo_image)
     header_cell_left.append(H(hotel_name.upper(), fs=18, c=PRIMARY))
     if hotel_address:
         header_cell_left.append(P(hotel_address, fs=10, c=GRAY))
@@ -1690,80 +1697,11 @@ def download_invoice(invoice_id):
         booking = db.session.get(Booking, invoice.booking_id)
         room = db.session.get(Room, booking.room_id) if booking and booking.room_id else None
         customer = db.session.get(Customer, booking.customer_id) if booking else None
-        
+
         if not booking:
             abort(404)
-        
-        # Create PDF
-        pdf = FPDF()
-        pdf.add_page()
-        pdf.set_font("Arial", size=12)
-        
-        # Header
-        pdf.set_font("Arial", "B", 16)
-        pdf.cell(0, 10, "INVOICE", ln=True, align="C")
-        pdf.ln(3)
-        
-        # Invoice details
-        pdf.set_font("Arial", size=9)
-        pdf.cell(0, 4, f"Invoice #: {invoice.invoice_number}", ln=True)
-        pdf.cell(0, 4, f"Date: {invoice.generated_at.strftime('%Y-%m-%d') if invoice.generated_at else 'N/A'}", ln=True)
-        pdf.ln(3)
-        
-        # Customer details
-        if customer:
-            pdf.set_font("Arial", "B", 10)
-            pdf.cell(0, 4, "CUSTOMER:", ln=True)
-            pdf.set_font("Arial", size=9)
-            pdf.cell(0, 4, f"Name: {customer.name}", ln=True)
-            pdf.cell(0, 4, f"Email: {customer.email}", ln=True)
-            pdf.cell(0, 4, f"Phone: {customer.phone}", ln=True)
-            pdf.ln(3)
-        
-        # Booking details
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 4, "BOOKING DETAILS:", ln=True)
-        pdf.set_font("Arial", size=9)
-        room_info = f"{room.room_number} ({room.room_type})" if room else 'N/A'
-        pdf.cell(0, 4, f"Room: {room_info}", ln=True)
-        pdf.cell(0, 4, f"Check-in: {booking.check_in}", ln=True)
-        pdf.cell(0, 4, f"Check-out: {booking.check_out}", ln=True)
-        pdf.cell(0, 4, f"Duration: {booking.stay_duration} nights", ln=True)
-        pdf.ln(3)
-        
-        # Charges breakdown
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 4, "CHARGES BREAKDOWN:", ln=True)
-        pdf.set_font("Arial", size=9)
-        
-        pdf.cell(0, 4, f"Room Charges: Rs. {booking.room_charge}", ln=True)
-        if booking.extra_person_charges and booking.extra_person_charges > 0:
-            pdf.cell(0, 4, f"Extra Person Charges: Rs. {booking.extra_person_charges}", ln=True)
-        if booking.extra_charges and booking.extra_charges > 0:
-            pdf.cell(0, 4, f"Extra Charges: Rs. {booking.extra_charges}", ln=True)
-        if booking.discount and booking.discount > 0:
-            pdf.cell(0, 4, f"Discount: -Rs. {booking.discount}", ln=True)
-        
-        pdf.ln(2)
-        pdf.cell(0, 4, f"Subtotal: Rs. {booking.subtotal}", ln=True)
-        if booking.gst_amount and booking.gst_amount > 0:
-            pdf.cell(0, 4, f"GST ({booking.gst_rate}%): Rs. {booking.gst_amount}", ln=True)
-        
-        pdf.ln(2)
-        pdf.set_font("Arial", "B", 10)
-        pdf.cell(0, 4, f"Total Amount: Rs. {booking.total_amount}", ln=True)
-        
-        pdf.ln(2)
-        pdf.set_font("Arial", size=9)
-        pdf.cell(0, 4, f"Advance Paid: Rs. {booking.advance_amount}", ln=True)
-        pdf.cell(0, 4, f"Pending Amount: Rs. {booking.pending_amount}", ln=True)
-        pdf.ln(2)
-        pdf.cell(0, 4, f"Status: {booking.status.upper()}", ln=True)
-        
-        # Generate PDF to bytes
-        pdf_bytes = pdf.output()
-        pdf_buffer = BytesIO(pdf_bytes)
-        
+
+        pdf_buffer = create_pdf_invoice(invoice, booking, customer, room)
         return send_file(
             pdf_buffer,
             mimetype='application/pdf',
