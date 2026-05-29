@@ -27,6 +27,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from xhtml2pdf import pisa
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -489,288 +490,24 @@ def admin_required(f):
     return decorated_function
 
 def create_pdf_invoice(invoice, booking, customer, room):
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=25, leftMargin=25, topMargin=25, bottomMargin=25)
-    elements = []
-    
-    styles = getSampleStyleSheet()
-    normal_style = styles['Normal']
-    
-    hotel_name = Settings.get('hotel_name', 'HOTEL SHRI GOVIND')
-    hotel_address = Settings.get('hotel_address', '')
-    hotel_phone = Settings.get('hotel_phone', '')
-    hotel_gst = Settings.get('hotel_gst', '')
-    hotel_owner = Settings.get('hotel_owner', 'Akshay Shukla')
-    
-    PRIMARY = colors.HexColor('#1a365d')
-    ACCENT = colors.HexColor('#c9a227')
-    SUCCESS = colors.HexColor('#38a169')
-    DANGER = colors.HexColor('#e53e3e')
-    GRAY = colors.HexColor('#718096')
-    
-    def P(text, style='N', **kw):
-        return Paragraph(text, ParagraphStyle('S', parent=styles['Normal'], fontSize=kw.get('fs', 11), textColor=kw.get('c', colors.black), alignment=kw.get('a', TA_LEFT), fontName=kw.get('fn', 'Helvetica'), spaceAfter=kw.get('sa', 0), spaceBefore=kw.get('sb', 0), leading=kw.get('l', 14)))
-    
-    def H(text, fs=11, c=colors.black, a=TA_LEFT):
-        return P(f'<b>{text}</b>', fs=fs, c=c, a=a)
-    
-    header_td_left = []
-    header_td_left.append(H(hotel_name.upper(), fs=18, c=PRIMARY))
-    if hotel_address:
-        header_td_left.append(P(hotel_address, fs=10, c=GRAY))
-    contact_parts = []
-    if hotel_phone: contact_parts.append(f'Phone: {hotel_phone}')
-    if hotel_gst: contact_parts.append(f'GST: {hotel_gst}')
-    if contact_parts:
-        header_td_left.append(P(' | '.join(contact_parts), fs=9, c=GRAY))
-    
-    checkin_str = booking.actual_check_in.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_in else booking.check_in.strftime('%d %b %Y, %I:%M %p')
-    checkout_str = booking.actual_check_out.strftime('%d %b %Y, %I:%M %p') if booking.actual_check_out else booking.check_out.strftime('%d %b %Y, %I:%M %p')
-    
-    header_td_right = []
-    header_td_right.append(H('INVOICE', fs=20, c=colors.HexColor('#1a202c'), a=TA_RIGHT))
-    header_td_right.append(P(f'<b>{invoice.invoice_number}</b><br/>Date: {invoice.generated_at.strftime("%d %b %Y, %I:%M %p")}', fs=11, c=colors.HexColor('#4a5568'), a=TA_RIGHT))
-    
-    left_content = []
-    for item in header_td_left:
-        left_content.append(item)
-    left_cell = []
-    for item in left_content:
-        left_cell.append(item)
-    
-    left_block = []
-    for item in header_td_left:
-        left_block.append(item)
-        left_block.append(Spacer(1, 2))
-    
-    logo_image = None
-    logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo.png')
-    if not os.path.exists(logo_path):
-        logo_path = os.path.join(os.path.dirname(__file__), 'static', 'logo.jpeg')
-    if os.path.exists(logo_path):
-        try:
-            logo_image = Image(logo_path, width=120, height=80)
-        except:
-            logo_image = None
+    def link_callback(uri, rel):
+        if uri.startswith(('http://', 'https://')):
+            return uri
+        if uri.startswith('/'):
+            path = os.path.join(basedir, uri.lstrip('/'))
+        else:
+            path = os.path.join(os.path.dirname(rel), uri)
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f'Media URI not found: {path}')
+        return path
 
-    qr_image = None
-    qr_path = os.path.join(os.path.dirname(__file__), 'static', 'hotel_qr.png')
-    if os.path.exists(qr_path):
-        try:
-            qr_image = Image(qr_path, width=60, height=60)
-        except:
-            qr_image = None
-    
-    right_col_items = []
-    for item in header_td_right:
-        right_col_items.append(item)
-    if qr_image:
-        right_col_items.append(Spacer(1, 5))
-        right_col_items.append(qr_image)
-    
-    right_block = []
-    for item in header_td_right:
-        right_block.append(item)
-    if qr_image:
-        right_block.append(Spacer(1, 5))
-        right_block.append(qr_image)
-    
-    header_cell_left = []
-    if logo_image:
-        header_cell_left.append(logo_image)
-    header_cell_left.append(H(hotel_name.upper(), fs=18, c=PRIMARY))
-    if hotel_address:
-        header_cell_left.append(P(hotel_address, fs=10, c=GRAY))
-    if contact_parts:
-        header_cell_left.append(P(' | '.join(contact_parts), fs=9, c=GRAY))
-    
-    header_cell_right = []
-    header_cell_right.append(H('INVOICE', fs=20, c=colors.HexColor('#1a202c'), a=TA_RIGHT))
-    header_cell_right.append(P(f'<b>{invoice.invoice_number}</b><br/>Date: {invoice.generated_at.strftime("%d %b %Y, %I:%M %p")}', fs=11, c=colors.HexColor('#4a5568'), a=TA_RIGHT))
-    if qr_image:
-        header_cell_right.append(Spacer(1, 5))
-        header_cell_right.append(qr_image)
-    
-    left_frame = []
-    for item in header_cell_left:
-        left_frame.append(item)
-    
-    right_frame = []
-    for item in header_cell_right:
-        right_frame.append(item)
-    
-    header_table = Table([
-        [left_frame, right_frame]
-    ], colWidths=[300, 250])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (0, -1), 'LEFT'),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-    ]))
-    elements.append(header_table)
-    elements.append(Spacer(1, 10))
-    
-    elements.append(Table([['']], colWidths=[550], style=TableStyle([
-        ('LINEABOVE', (0, 0), (-1, 0), 2, PRIMARY),
-    ])))
-    elements.append(Spacer(1, 15))
-    
-    bill_to = H('BILL TO', fs=9, c=GRAY)
-    bill_to_name = booking.billing_name if booking.billing_name else customer.name
-    bill_lines = [bill_to, P(f'<b>{bill_to_name}</b>', fs=11)]
-    if booking.company_gst:
-        bill_lines.append(P(f'GST: {booking.company_gst}', fs=10, c=GRAY))
-    if booking.company_address:
-        bill_lines.append(P(f'{booking.company_address}', fs=10, c=GRAY))
-    elif customer.address:
-        bill_lines.append(P(f'{customer.address}', fs=10, c=GRAY))
-    
-    guest_lines = [H('GUEST DETAILS', fs=9, c=GRAY), P(f'<b>{customer.name}</b>', fs=11), P(f'{customer.phone}', fs=10, c=GRAY)]
-    if customer.address:
-        guest_lines.append(P(f'{customer.address}', fs=10, c=GRAY))
-    
-    booking_lines = [H('BOOKING DETAILS', fs=9, c=GRAY)]
-    booking_lines.append(P(f'<b>Booking ID:</b> {booking.booking_id}', fs=10))
-    if booking.booking_category == 'wedding':
-        pkg_name = {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, 'Wedding Package')
-        booking_lines.append(P(f'<b>Package:</b> {pkg_name}', fs=10))
-    else:
-        rt = room.room_number + ' (' + room.room_type.title() + ')' if room else 'N/A'
-        booking_lines.append(P(f'<b>Room:</b> {rt}', fs=10))
-    booking_lines.append(P(f'<b>Persons:</b> {booking.number_of_persons}', fs=10))
-    booking_lines.append(P(f'<b>Check-in:</b> {checkin_str}', fs=10))
-    booking_lines.append(P(f'<b>Check-out:</b> {checkout_str}', fs=10))
-    booking_lines.append(P(f'<b>Nights:</b> {booking.stay_duration}', fs=10))
-    
-    col_width = 180
-    info_table = Table([
-        [bill_lines, guest_lines, booking_lines]
-    ], colWidths=[col_width, col_width, col_width])
-    info_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    elements.append(info_table)
-    elements.append(Spacer(1, 15))
-    
-    accompanying_persons = AccompanyingPerson.query.filter_by(booking_id=booking.id).all()
-    if accompanying_persons:
-        ap_names = '  |  '.join([f'{ap.name}' + (f' ({ap.phone})' if ap.phone else '') for ap in accompanying_persons])
-        elements.append(H('ACCOMPANYING PERSONS', fs=9, c=GRAY))
-        elements.append(P(ap_names, fs=10))
-        elements.append(Spacer(1, 12))
-    
-    cgst_amount = float(booking.gst_amount or 0) / 2
-    sgst_amount = float(booking.gst_amount or 0) / 2
-    gst_percent = float(booking.gst_rate or 5) / 2
-    
-    if booking.booking_category == 'wedding':
-        wedding_rates = {'all_9_ac': 15000, 'all_rooms': 17000}
-        room_rate = wedding_rates.get(booking.wedding_package, 15000)
-        package_name = {'all_9_ac': 'All 9 AC Rooms', 'all_rooms': 'All Rooms'}.get(booking.wedding_package, 'Wedding Package')
-        room_charge_total = room_rate * booking.stay_duration
-        charges_data = [
-            [P('<b>Description</b>', fs=10), P('<b>Qty</b>', fs=10, a=TA_CENTER), P('<b>Rate</b>', fs=10, a=TA_RIGHT), P('<b>Amount</b>', fs=10, a=TA_RIGHT)],
-            [P(f'<b>Wedding Package ({package_name})</b>', fs=10), P(f'<b>{booking.stay_duration}</b>', fs=10, a=TA_CENTER), P(f'<b>Rs. {room_rate:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier'), P(f'<b>Rs. {room_charge_total:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')],
-        ]
-    else:
-        room_rate = float(room.price_per_night)
-        room_charge_total = room_rate * booking.stay_duration
-        charges_data = [
-            [P('<b>Description</b>', fs=10), P('<b>Qty</b>', fs=10, a=TA_CENTER), P('<b>Rate</b>', fs=10, a=TA_RIGHT), P('<b>Amount</b>', fs=10, a=TA_RIGHT)],
-            [P('<b>Room Charge</b>', fs=10), P(f'<b>{booking.stay_duration}</b>', fs=10, a=TA_CENTER), P(f'<b>Rs. {room_rate:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier'), P(f'<b>Rs. {room_charge_total:,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')],
-        ]
-        if float(booking.extra_person_charges or 0) > 0:
-            charges_data.append([P('Extra Person Charges', fs=10), P('', fs=10), P('Rs. 500.00', fs=10, a=TA_RIGHT, fn='Courier'), P(f'Rs. {float(booking.extra_person_charges):,.2f}', fs=10, a=TA_RIGHT, fn='Courier')])
-    
-    for ec in booking.extra_charges_list:
-        desc = ec.description if ec.description else ec.charge_type.replace('_', ' ').title()
-        unit_rate = float(ec.amount/ec.quantity) if ec.quantity > 0 else float(ec.amount)
-        charges_data.append([P(desc, fs=10), P(str(ec.quantity), fs=10, a=TA_CENTER), P(f'Rs. {unit_rate:,.2f}', fs=10, a=TA_RIGHT, fn='Courier'), P(f'Rs. {float(ec.amount):,.2f}', fs=10, a=TA_RIGHT, fn='Courier')])
-    
-    if float(booking.discount or 0) > 0:
-        charges_data.append([P('Discount', fs=10), P('', fs=10), P('', fs=10), P(f'Rs. {float(booking.discount):,.2f}', fs=10, a=TA_RIGHT, fn='Courier', c=SUCCESS)])
-    
-    if float(booking.gst_amount or 0) > 0 and booking.gst_mode == 'include':
-        gst_rate = float(booking.gst_rate or 5)
-        taxable = float(booking.total_amount) - float(booking.gst_amount)
-        cgst = round(float(booking.gst_amount) / 2, 2)
-        sgst = float(booking.gst_amount) - cgst
-        charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>Grand Total (Incl. GST {gst_rate:.1f}%):</b>', fs=11, c=PRIMARY, a=TA_RIGHT), P(f'<b>Rs. {float(booking.total_amount):,.2f}</b>', fs=11, c=PRIMARY, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P('<i>Included Tax Breakdown</i>', fs=8, c=GRAY), P('', fs=10), P('', fs=10), P('', fs=10)])
-        charges_data.append([P('Taxable Amount', fs=9), P('', fs=10), P('', fs=10), P(f'Rs. {taxable:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P(f'CGST @{gst_rate/2:.1f}%', fs=9), P('', fs=10), P('', fs=10), P(f'{cgst:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P(f'SGST @{gst_rate/2:.1f}%', fs=9), P('', fs=10), P('', fs=10), P(f'{sgst:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P('Total GST', fs=9, c=GRAY), P('', fs=10), P('', fs=10), P(f'{float(booking.gst_amount):,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
-    else:
-        gst_amount = float(booking.gst_amount or 0)
-        cgst_e = round(gst_amount / 2, 2) if gst_amount > 0 else 0
-        sgst_e = gst_amount - cgst_e if gst_amount > 0 else 0
-        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Subtotal (before GST):</b>', fs=10, a=TA_RIGHT), P(f'<b>Rs. {float(booking.subtotal):,.2f}</b>', fs=10, a=TA_RIGHT, fn='Courier')])
-        if gst_amount > 0:
-            charges_data.append([P('', fs=10), P('', fs=10), P('<i>Tax Breakdown</i>', fs=8, c=GRAY, a=TA_RIGHT), P('', fs=10)])
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'CGST @{gst_percent:.1f}%', fs=9, a=TA_RIGHT), P(f'{cgst_e:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
-            charges_data.append([P('', fs=10), P('', fs=10), P(f'SGST @{gst_percent:.1f}%', fs=9, a=TA_RIGHT), P(f'{sgst_e:,.2f}', fs=9, a=TA_RIGHT, fn='Courier')])
-            charges_data.append([P('', fs=10), P('', fs=10), P('Total GST', fs=9, c=GRAY, a=TA_RIGHT), P(f'{gst_amount:,.2f}', fs=9, c=GRAY, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P('', fs=10), P('', fs=10), P(f'<b>Grand Total (incl. GST {float(booking.gst_rate or 5):.1f}%):</b>', fs=11, c=PRIMARY, a=TA_RIGHT), P(f'<b>Rs. {float(booking.total_amount):,.2f}</b>', fs=11, c=PRIMARY, a=TA_RIGHT, fn='Courier')])
-    
-    pending = float(booking.pending_amount or 0)
-    advance = float(booking.advance_amount or 0)
-    
-    if advance > 0 and pending > 0:
-        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Advance Paid:</b>', fs=10, c=SUCCESS, a=TA_RIGHT), P(f'<b>-Rs. {advance:,.2f}</b>', fs=10, c=SUCCESS, a=TA_RIGHT, fn='Courier')])
-        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Balance Due:</b>', fs=10, c=DANGER, a=TA_RIGHT), P(f'<b>Rs. {pending:,.2f}</b>', fs=10, c=DANGER, a=TA_RIGHT, fn='Courier')])
-    elif pending < 0:
-        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Excess Paid:</b>', fs=10, c=SUCCESS, a=TA_RIGHT), P(f'<b>Rs. {advance - float(booking.total_amount):,.2f}</b>', fs=10, c=SUCCESS, a=TA_RIGHT, fn='Courier')])
-    else:
-        charges_data.append([P('', fs=10), P('', fs=10), P('<b>Paid:</b>', fs=10, c=SUCCESS, a=TA_RIGHT), P('<b>PAID</b>', fs=10, c=SUCCESS, a=TA_RIGHT, fn='Courier')])
-    
-    charges_table = Table(charges_data, colWidths=[260, 60, 110, 120])
-    table_style = [
-        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.black),
-        ('LINEBELOW', (0, 1), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('LEFTPADDING', (0, 0), (-1, -1), 4),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('ALIGN', (1, 0), (1, -1), 'CENTER'),
-        ('ALIGN', (2, 0), (3, -1), 'RIGHT'),
-        ('ALIGN', (0, 0), (0, 0), 'LEFT'),
-    ]
-    charges_table.setStyle(TableStyle(table_style))
-    elements.append(charges_table)
-    elements.append(Spacer(1, 25))
-    
-    elements.append(Spacer(1, 20))
-    
-    sign_table = Table([
-        [P('<b>Guest Signature</b>', fs=10, c=GRAY), P('', fs=10), P(f'<b>For {hotel_name.upper()}</b>', fs=10, a=TA_RIGHT, c=GRAY)],
-        [P('_' * 30, fs=10), P('', fs=10), P('_' * 30, fs=10, a=TA_RIGHT)],
-        [P(f'<b>{customer.name}</b>', fs=10), P('', fs=10), P(f'<b>Authorised Signatory</b><br/>{hotel_owner}', fs=9, a=TA_RIGHT, c=GRAY)],
-    ], colWidths=[180, 190, 180])
-    sign_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
-        ('TOPPADDING', (0, 0), (-1, -1), 2),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-    ]))
-    elements.append(sign_table)
-    elements.append(Spacer(1, 20))
-    
-    elements.append(Table([['']], colWidths=[550], style=TableStyle([
-        ('LINEABOVE', (0, 0), (-1, 0), 1, ACCENT),
-    ])))
-    elements.append(Spacer(1, 8))
-    elements.append(P('<i>Thank you for staying with us!</i>', fs=10, c=GRAY, a=TA_CENTER))
-    elements.append(P('Terms: Check-out time is 12:00 PM. Late checkout charges apply after that.', fs=8, c=GRAY, a=TA_CENTER))
-    
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
+    html = render_template('invoice_pdf_standalone.html', invoice=invoice, booking=booking, room=room, customer=customer, now=datetime.now())
+    pdf_buffer = BytesIO()
+    pisa_status = pisa.CreatePDF(html, dest=pdf_buffer, link_callback=link_callback)
+    pdf_buffer.seek(0)
+    if pisa_status.err:
+        raise Exception('PDF generation failed')
+    return pdf_buffer
 
 # ==================== ROUTES ====================
 
