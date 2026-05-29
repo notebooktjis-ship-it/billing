@@ -1685,75 +1685,93 @@ def invoice_detail(invoice_id):
 @app.route('/invoices/<int:invoice_id>/download')
 @login_required
 def download_invoice(invoice_id):
-    invoice = db.get_or_404(Invoice, invoice_id)
-    booking = db.session.get(Booking, invoice.booking_id)
-    room = db.session.get(Room, booking.room_id) if booking.room_id else None
-    customer = db.session.get(Customer, booking.customer_id)
-    
-    # Create PDF
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    
-    # Header
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, "INVOICE", ln=True, align="C")
-    pdf.ln(5)
-    
-    # Invoice details
-    pdf.set_font("Arial", size=10)
-    pdf.cell(0, 5, f"Invoice #: {invoice.invoice_number}", ln=True)
-    pdf.cell(0, 5, f"Date: {invoice.date_created.strftime('%Y-%m-%d')}", ln=True)
-    pdf.ln(5)
-    
-    # Customer details
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 5, "CUSTOMER:", ln=True)
-    pdf.set_font("Arial", size=10)
-    pdf.cell(0, 5, f"Name: {customer.name if customer else 'N/A'}", ln=True)
-    pdf.cell(0, 5, f"Email: {customer.email if customer else 'N/A'}", ln=True)
-    pdf.cell(0, 5, f"Phone: {customer.phone if customer else 'N/A'}", ln=True)
-    pdf.ln(5)
-    
-    # Booking details
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 5, "BOOKING DETAILS:", ln=True)
-    pdf.set_font("Arial", size=10)
-    if booking:
-        pdf.cell(0, 5, f"Room: {room.room_name if room else 'N/A'}", ln=True)
-        pdf.cell(0, 5, f"Check-in: {booking.check_in_date}", ln=True)
-        pdf.cell(0, 5, f"Check-out: {booking.check_out_date}", ln=True)
-    pdf.ln(5)
-    
-    # Invoice items
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 5, "INVOICE ITEMS:", ln=True)
-    pdf.set_font("Arial", size=9)
-    
-    total_amount = Decimal('0')
-    for item in invoice.items:
-        pdf.cell(0, 5, f"- {item.description}: Rs. {item.amount}", ln=True)
-        total_amount += item.amount
-    
-    pdf.ln(3)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(0, 5, f"Total: Rs. {total_amount}", ln=True)
-    
-    # Payment status
-    pdf.ln(3)
-    pdf.set_font("Arial", size=10)
-    pdf.cell(0, 5, f"Status: {invoice.status}", ln=True)
-    
-    pdf_buffer = BytesIO()
-    pdf.output(pdf_buffer)
-    pdf_buffer.seek(0)
-    
-    return send_file(
-        pdf_buffer,
-        mimetype='application/pdf',
-        as_attachment=True,
-        download_name=f'{invoice.invoice_number}.pdf'
-    )
+    try:
+        invoice = db.get_or_404(Invoice, invoice_id)
+        booking = db.session.get(Booking, invoice.booking_id)
+        room = db.session.get(Room, booking.room_id) if booking and booking.room_id else None
+        customer = db.session.get(Customer, booking.customer_id) if booking else None
+        
+        if not booking:
+            abort(404)
+        
+        # Create PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        # Header
+        pdf.set_font("Arial", "B", 16)
+        pdf.cell(0, 10, "INVOICE", ln=True, align="C")
+        pdf.ln(3)
+        
+        # Invoice details
+        pdf.set_font("Arial", size=9)
+        pdf.cell(0, 4, f"Invoice #: {invoice.invoice_number}", ln=True)
+        pdf.cell(0, 4, f"Date: {invoice.generated_at.strftime('%Y-%m-%d') if invoice.generated_at else 'N/A'}", ln=True)
+        pdf.ln(3)
+        
+        # Customer details
+        if customer:
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 4, "CUSTOMER:", ln=True)
+            pdf.set_font("Arial", size=9)
+            pdf.cell(0, 4, f"Name: {customer.name}", ln=True)
+            pdf.cell(0, 4, f"Email: {customer.email}", ln=True)
+            pdf.cell(0, 4, f"Phone: {customer.phone}", ln=True)
+            pdf.ln(3)
+        
+        # Booking details
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 4, "BOOKING DETAILS:", ln=True)
+        pdf.set_font("Arial", size=9)
+        pdf.cell(0, 4, f"Room: {room.room_name if room else 'N/A'}", ln=True)
+        pdf.cell(0, 4, f"Check-in: {booking.check_in_date}", ln=True)
+        pdf.cell(0, 4, f"Check-out: {booking.check_out_date}", ln=True)
+        pdf.cell(0, 4, f"Duration: {booking.stay_duration} nights", ln=True)
+        pdf.ln(3)
+        
+        # Charges breakdown
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 4, "CHARGES BREAKDOWN:", ln=True)
+        pdf.set_font("Arial", size=9)
+        
+        pdf.cell(0, 4, f"Room Charges: Rs. {booking.room_charge}", ln=True)
+        if booking.extra_person_charges and booking.extra_person_charges > 0:
+            pdf.cell(0, 4, f"Extra Person Charges: Rs. {booking.extra_person_charges}", ln=True)
+        if booking.extra_charges and booking.extra_charges > 0:
+            pdf.cell(0, 4, f"Extra Charges: Rs. {booking.extra_charges}", ln=True)
+        if booking.discount and booking.discount > 0:
+            pdf.cell(0, 4, f"Discount: -Rs. {booking.discount}", ln=True)
+        
+        pdf.ln(2)
+        pdf.cell(0, 4, f"Subtotal: Rs. {booking.subtotal}", ln=True)
+        if booking.gst_amount and booking.gst_amount > 0:
+            pdf.cell(0, 4, f"GST ({booking.gst_rate}%): Rs. {booking.gst_amount}", ln=True)
+        
+        pdf.ln(2)
+        pdf.set_font("Arial", "B", 10)
+        pdf.cell(0, 4, f"Total Amount: Rs. {booking.total_amount}", ln=True)
+        
+        pdf.ln(2)
+        pdf.set_font("Arial", size=9)
+        pdf.cell(0, 4, f"Advance Paid: Rs. {booking.advance_amount}", ln=True)
+        pdf.cell(0, 4, f"Pending Amount: Rs. {booking.pending_amount}", ln=True)
+        pdf.ln(2)
+        pdf.cell(0, 4, f"Status: {booking.status.upper()}", ln=True)
+        
+        # Generate PDF to bytes
+        pdf_bytes = pdf.output()
+        pdf_buffer = BytesIO(pdf_bytes)
+        
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'{invoice.invoice_number}.pdf'
+        )
+    except Exception as e:
+        print(f"Error downloading invoice: {str(e)}")
+        abort(500)
 
 # ==================== PAYMENTS ====================
 
